@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.1)
 
 set(SRC_ROOT ".")
 
+option(VULKAN_LAYER "Build Vulkan layer" OFF)
+option(BUILD_STATIC "Build static version" ON)
+
 add_definitions(-std=c++11 -Wall -fno-strict-aliasing -ggdb -Wno-deprecated-declarations)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
@@ -36,34 +39,38 @@ set(COLLECTOR_SRC
 
 # --- library ---
 
-add_library(collector SHARED ${COLLECTOR_SRC})
-target_include_directories(collector ${COLLECTOR_INCLUDES})
-target_link_libraries(collector rt)
-set_target_properties(collector PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
-
-add_library(libcollector STATIC ${COLLECTOR_SRC})
-target_include_directories(libcollector ${COLLECTOR_INCLUDES})
-target_link_libraries(libcollector rt)
-set_target_properties(libcollector PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
+if (BUILD_STATIC)
+    add_library(collector STATIC ${COLLECTOR_SRC})
+    target_include_directories(collector ${COLLECTOR_INCLUDES})
+    target_link_libraries(collector rt)
+    set_target_properties(collector PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
+else()
+    add_library(collector SHARED ${COLLECTOR_SRC})
+    target_include_directories(collector ${COLLECTOR_INCLUDES})
+    target_link_libraries(collector rt)
+    set_target_properties(collector PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
+endif()
 
 # --- vulkan layer ---
 
-add_library(VkLayer_libcollector SHARED ${COLLECTOR_SRC} ${SRC_ROOT}/layer/vulkan_layer.cpp)
-target_include_directories(VkLayer_libcollector ${COLLECTOR_INCLUDES})
-add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mkdir -p implicit_layer.d)
-add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mv ${CMAKE_CURRENT_BINARY_DIR}/libVkLayer_libcollector.so implicit_layer.d/libVkLayer_libcollector.so)
-add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/layer/VkLayer_libcollector.json implicit_layer.d/VkLayer_libcollector.json)
+if (VULKAN_LAYER)
+    add_library(VkLayer_libcollector SHARED ${COLLECTOR_SRC} ${SRC_ROOT}/layer/vulkan_layer.cpp)
+    target_include_directories(VkLayer_libcollector ${COLLECTOR_INCLUDES})
+    add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mkdir -p implicit_layer.d)
+    add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mv ${CMAKE_CURRENT_BINARY_DIR}/libVkLayer_libcollector.so implicit_layer.d/libVkLayer_libcollector.so)
+    add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/layer/VkLayer_libcollector.json implicit_layer.d/VkLayer_libcollector.json)
+endif()
 
 # --- test app ---
 
 add_executable(test_app ${SRC_ROOT}/test.cpp)
-target_link_libraries(test_app libcollector)
+target_link_libraries(test_app collector)
 set_target_properties(test_app PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 target_include_directories(test_app ${COLLECTOR_INCLUDES})
 
 # --- burrow ---
 
 add_executable(burrow ${SRC_ROOT}/burrow.cpp)
-target_link_libraries(burrow libcollector)
+target_link_libraries(burrow collector)
 set_target_properties(burrow PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 target_include_directories(burrow ${COLLECTOR_INCLUDES})
