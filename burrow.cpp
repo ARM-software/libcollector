@@ -1,13 +1,3 @@
-/*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2017 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
- */
-
 #include "interface.hpp"
 
 #include <stdlib.h>
@@ -18,12 +8,10 @@
 #include "json/writer.h"
 #include "json/value.h"
 
-
 #ifndef DEBUG
 // otherwise we will get complaints about assert()ed variables being unused
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #endif
-
 
 #ifdef ANDROID
 
@@ -59,9 +47,7 @@
 #endif
 #endif
 
-
-static bool monitor( const int maxCpu, std::string const& process,
-                     std::string const& outDir, int timeout )
+static bool monitor(const int maxCpu, std::string const& process, std::string const& outDir, int timeout)
 {
     bool success = false;
 
@@ -164,7 +150,7 @@ static bool monitor( const int maxCpu, std::string const& process,
 }
 
 
-void usage( int status )
+void usage(int status)
 {
     static const char message[] =
         "usage: burrow [-h] -c <max CPU number> PROGRAM\n\n"
@@ -192,7 +178,7 @@ void usage( int status )
 }
 
 
-int main( int argc, char **argv )
+int main(int argc, char **argv)
 {
     extern char *optarg;
     extern int optind;

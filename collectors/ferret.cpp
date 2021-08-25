@@ -1,13 +1,3 @@
-/*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2017 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
- */
-
 #include "ferret.hpp"
 
 #include <set>
@@ -1347,7 +1337,6 @@ Json::Value postprocess_ferret_data(const std::string& outputFname, const std::v
                         pidHistory[pid] = FerretProcess(tick, cpuNrs);
                     }
 
-                    
                     int ustime = pidInfo["utime"].asInt() + pidInfo["stime"].asInt();
 
                     std::string processor_string = _to_string(processor);
