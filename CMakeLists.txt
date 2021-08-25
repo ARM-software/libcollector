@@ -36,30 +36,34 @@ set(COLLECTOR_SRC
 
 # --- library ---
 
-add_library(collector ${COLLECTOR_SRC})
+add_library(collector SHARED ${COLLECTOR_SRC})
 target_include_directories(collector ${COLLECTOR_INCLUDES})
 target_link_libraries(collector rt)
 set_target_properties(collector PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 
+add_library(libcollector STATIC ${COLLECTOR_SRC})
+target_include_directories(libcollector ${COLLECTOR_INCLUDES})
+target_link_libraries(libcollector rt)
+set_target_properties(libcollector PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 
 # --- vulkan layer ---
 
 add_library(VkLayer_libcollector SHARED ${COLLECTOR_SRC} ${SRC_ROOT}/layer/vulkan_layer.cpp)
 target_include_directories(VkLayer_libcollector ${COLLECTOR_INCLUDES})
 add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mkdir -p implicit_layer.d)
-add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mv libVkLayer_libcollector.so implicit_layer.d/libVkLayer_libcollector.so)
+add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND mv ${CMAKE_CURRENT_BINARY_DIR}/libVkLayer_libcollector.so implicit_layer.d/libVkLayer_libcollector.so)
 add_custom_command(TARGET VkLayer_libcollector POST_BUILD COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/layer/VkLayer_libcollector.json implicit_layer.d/VkLayer_libcollector.json)
 
 # --- test app ---
 
 add_executable(test_app ${SRC_ROOT}/test.cpp)
-target_link_libraries(test_app collector)
+target_link_libraries(test_app libcollector)
 set_target_properties(test_app PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 target_include_directories(test_app ${COLLECTOR_INCLUDES})
 
 # --- burrow ---
 
 add_executable(burrow ${SRC_ROOT}/burrow.cpp)
-target_link_libraries(burrow collector)
+target_link_libraries(burrow libcollector)
 set_target_properties(burrow PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 target_include_directories(burrow ${COLLECTOR_INCLUDES})
