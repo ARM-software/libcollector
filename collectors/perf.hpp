@@ -10,6 +10,29 @@ enum hw_cnt_length
     b64,
 };
 
+enum cmn_node_type
+{
+    CMN_TYPE_INVALID = 0,
+    CMN_TYPE_DVM,
+    CMN_TYPE_CFG,
+    CMN_TYPE_DTC,
+    CMN_TYPE_HNI,
+    CMN_TYPE_HNF,
+    CMN_TYPE_XP,
+    CMN_TYPE_SBSX,
+    CMN_TYPE_MPAM_S,
+    CMN_TYPE_MPAM_NS,
+    CMN_TYPE_RNI = 0xa,
+    CMN_TYPE_RND = 0xd,
+    CMN_TYPE_RNSAM = 0xf,
+    CMN_TYPE_MTSX = 0x10,
+    CMN_TYPE_CXRA = 0x100,
+    CMN_TYPE_CXHA = 0x101,
+    CMN_TYPE_CXLA = 0x102,
+    /* Not a real node type */
+    CMN_TYPE_WP = 0x7770,
+};
+
 struct snapshot {
     snapshot() : size(0) {}
 
@@ -24,6 +47,7 @@ struct event {
     bool exc_user;    // default is false
     bool exc_kernel;  // default is false
     enum hw_cnt_length len; // default is 32bit pmu counter
+    bool booker_ci;  // default is false
 };
 
 class event_context
@@ -36,7 +60,7 @@ public:
 
     ~event_context() {}
 
-    bool init(int tid, std::vector<struct event> &events);
+    bool init(std::vector<struct event> &events, int tid, int cpu);
     bool start();
     struct snapshot collect(int64_t now);
     bool stop();
@@ -83,6 +107,7 @@ private:
     int mSet = -1;
     bool mAllThread = true;
     std::vector<struct event> mEvents;
+    std::vector<struct event> mBookerEvents;
 
     struct perf_thread
     {
@@ -102,7 +127,6 @@ private:
         void postprocess(Json::Value& value)
         {
             Json::Value v;
-            Json::Value acc;
             for (const auto& pair : mResultsPerThread)
             {
                 bool need_sum = false;
@@ -119,9 +143,8 @@ private:
                     total += s;
                 }
                 value[pair.first] = v[pair.first];
-                acc[pair.first] = (Json::Value::Int64)total;
+                value["SUM"][pair.first] = (Json::Value::Int64)total;
             }
-            value["SUM"] = acc;
         }
 
         void summarize()
@@ -140,4 +163,5 @@ private:
 
     std::vector<struct perf_thread> mReplayThreads;
     std::vector<struct perf_thread> mBgThreads;
+    std::vector<struct perf_thread> mBookerThread;
 };

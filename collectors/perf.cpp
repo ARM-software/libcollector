@@ -20,38 +20,71 @@
 #include <fstream>
 
 std::map<int, std::vector<struct event>> EVENTS = {
-{0, { {"CPUInstructionRetired", PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, false, false, hw_cnt_length::b32},
-      {"CPUCacheReferences", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, false, false, hw_cnt_length::b32},
-      {"CPUCacheMisses", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, false, false, hw_cnt_length::b32},
-      {"CPUBranchMispredictions", PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES, false, false, hw_cnt_length::b32}
+{0, { {"CPUInstructionRetired", PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, false, false, hw_cnt_length::b32, false},
+      {"CPUCacheReferences", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, false, false, hw_cnt_length::b32, false},
+      {"CPUCacheMisses", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, false, false, hw_cnt_length::b32, false},
+      {"CPUBranchMispredictions", PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES, false, false, hw_cnt_length::b32, false}
     }
 },
-{1, { {"CPUInstructionRetired", PERF_TYPE_RAW, 0x8, false, false, hw_cnt_length::b32},
-      {"CPUL1CacheAccesses", PERF_TYPE_RAW, 0x4, false, false, hw_cnt_length::b32},
-      {"CPUL2CacheAccesses", PERF_TYPE_RAW, 0x16, false, false, hw_cnt_length::b32},
-      {"CPULASESpec", PERF_TYPE_RAW, 0x74, false, false, hw_cnt_length::b32},
-      {"CPUVFPSpec", PERF_TYPE_RAW, 0x75, false, false, hw_cnt_length::b32},
-      {"CPUCryptoSpec", PERF_TYPE_RAW, 0x77, false, false, hw_cnt_length::b32},
+{1, { {"CPUInstructionRetired", PERF_TYPE_RAW, 0x8, false, false, hw_cnt_length::b32, false},
+      {"CPUL1CacheAccesses", PERF_TYPE_RAW, 0x4, false, false, hw_cnt_length::b32, false},
+      {"CPUL2CacheAccesses", PERF_TYPE_RAW, 0x16, false, false, hw_cnt_length::b32, false},
+      {"CPULASESpec", PERF_TYPE_RAW, 0x74, false, false, hw_cnt_length::b32, false},
+      {"CPUVFPSpec", PERF_TYPE_RAW, 0x75, false, false, hw_cnt_length::b32, false},
+      {"CPUCryptoSpec", PERF_TYPE_RAW, 0x77, false, false, hw_cnt_length::b32, false},
     }
 },
-{2, { {"CPUL3CacheAccesses", PERF_TYPE_RAW, 0x2b, false, false, hw_cnt_length::b32},
-      {"CPUBusAccessRead", PERF_TYPE_RAW, 0x60, false, false, hw_cnt_length::b32},
-      {"CPUBusAccessWrite", PERF_TYPE_RAW, 0x61, false, false, hw_cnt_length::b32},
-      {"CPUMemoryAccessRead", PERF_TYPE_RAW, 0x66, false, false, hw_cnt_length::b32},
-      {"CPUMemoryAccessWrite", PERF_TYPE_RAW, 0x67, false, false, hw_cnt_length::b32},
+{2, { {"CPUL3CacheAccesses", PERF_TYPE_RAW, 0x2b, false, false, hw_cnt_length::b32, false},
+      {"CPUBusAccessRead", PERF_TYPE_RAW, 0x60, false, false, hw_cnt_length::b32, false},
+      {"CPUBusAccessWrite", PERF_TYPE_RAW, 0x61, false, false, hw_cnt_length::b32, false},
+      {"CPUMemoryAccessRead", PERF_TYPE_RAW, 0x66, false, false, hw_cnt_length::b32, false},
+      {"CPUMemoryAccessWrite", PERF_TYPE_RAW, 0x67, false, false, hw_cnt_length::b32, false},
     }
 },
-{3, { {"CPUBusAccesses", PERF_TYPE_RAW, 0x19, false, false, hw_cnt_length::b32},
-      {"CPUL2CacheRead", PERF_TYPE_RAW, 0x50, false, false, hw_cnt_length::b32},
-      {"CPUL2CacheWrite", PERF_TYPE_RAW, 0x51, false, false, hw_cnt_length::b32},
-      {"CPUMemoryAccessRead", PERF_TYPE_RAW, 0x66, false, false, hw_cnt_length::b32},
-      {"CPUMemoryAccessWrite", PERF_TYPE_RAW, 0x67, false, false, hw_cnt_length::b32},
+{3, { {"CPUBusAccesses", PERF_TYPE_RAW, 0x19, false, false, hw_cnt_length::b32, false},
+      {"CPUL2CacheRead", PERF_TYPE_RAW, 0x50, false, false, hw_cnt_length::b32, false},
+      {"CPUL2CacheWrite", PERF_TYPE_RAW, 0x51, false, false, hw_cnt_length::b32, false},
+      {"CPUMemoryAccessRead", PERF_TYPE_RAW, 0x66, false, false, hw_cnt_length::b32, false},
+      {"CPUMemoryAccessWrite", PERF_TYPE_RAW, 0x67, false, false, hw_cnt_length::b32, false},
     }
 }
 };
 
+std::map<std::string, int> NodeTypes = {
+{"DVM", CMN_TYPE_DVM},
+{"CFG", CMN_TYPE_CFG},
+{"DTC", CMN_TYPE_DTC},
+{"HNI", CMN_TYPE_HNI},
+{"HNF", CMN_TYPE_HNF},
+{"XP" , CMN_TYPE_XP },
+{"SBSX", CMN_TYPE_SBSX},
+{"MPAM_S", CMN_TYPE_MPAM_S},
+{"MPAM_NS", CMN_TYPE_MPAM_NS},
+{"RNI", CMN_TYPE_RNI},
+{"RND", CMN_TYPE_RND},
+{"RNSAM", CMN_TYPE_RNSAM},
+{"MTSX", CMN_TYPE_MTSX},
+{"CXRA", CMN_TYPE_CXRA},
+{"CXHA", CMN_TYPE_CXHA},
+{"CXLA", CMN_TYPE_CXLA},
+{" ", CMN_TYPE_INVALID},
+};
+
+static inline uint64_t makeup_booker_ci_config(int nodetype, int eventid, int bynodeid = 0, uint64_t nodeid = 0)
+{
+    uint64_t config = 0;
+    //bitfields in attr.config. nodeid: GENMASK(47, 32)).     bynodeid: BIT(31)).      eventId: GENMASK(23, 16)).      nodetype: GENMASK(15, 0)
+    config = ((nodeid << 32) & 0x0000FFFF00000000) | ((bynodeid << 31) & 0x80000000) | ((eventid << 16) & 0x00FF0000) | (nodetype & 0x0000FFFF);
+
+    DBG_LOG("booker-ci event config 0x%lx, %ld\n", config, config);
+    return config;
+}
+
 PerfCollector::PerfCollector(const Json::Value& config, const std::string& name) : Collector(config, name)
 {
+    struct event leader = {"CPUCycleCount", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES};
+    mEvents.push_back(leader);
+
     mSet = mConfig.get("set", -1).asInt();
 
     if ((0 <= mSet) && (mSet <= 3))
@@ -75,28 +108,53 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
                 continue;
             }
             e.name = item.get("name", "").asString();
-            e.type = item.get("type", -1).asInt();
-            e.config = item.get("config", -1).asInt();
+            e.type = item.get("type", 0).asInt();
             e.exc_user = item.get("excludeUser", false).asBool();
             e.exc_kernel = item.get("excludeKernel", false).asBool();
             e.len = (item.get("counterLen64bit", 0).asInt() == 0) ? hw_cnt_length::b32 : hw_cnt_length::b64;
+            e.booker_ci = item.get("booker-ci", 0).asInt();
 
-            mEvents.push_back(e);
+            if (e.booker_ci)
+            {   // booker-ci counter
+                int eventid = item.get("config", 0).asInt();
+                std::string type = item.get("nodetype", " ").asString();
+                int nodetype = NodeTypes[type];
+                int bynodeid = item.get("bynodeid", 0).asInt();
+
+                if (bynodeid)
+                {
+                    Json::Value nodeIdArray = item["nodeid"];
+                    for (Json::ArrayIndex idx = 0; idx < nodeIdArray.size(); idx++)
+                    {
+                        struct event nodeEvent = e;
+                        uint64_t nodeid = nodeIdArray[idx].asUInt64();
+                        nodeEvent.config = makeup_booker_ci_config(nodetype, eventid, 1, nodeid);
+                        nodeEvent.name = item.get("name", "").asString() + "_node" + _to_string(nodeid);
+                        mBookerEvents.push_back(nodeEvent);
+                    }
+                }
+                else
+                {
+                    e.config = makeup_booker_ci_config(nodetype, eventid);
+                    mBookerEvents.push_back(e);
+                }
+            }
+            else
+            {
+                e.config = item.get("config", 0).asUInt64();
+                mEvents.push_back(e);
+            }
         }
     }
 
     mAllThread = mConfig.get("allthread", true).asBool();
 }
 
-static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
+static inline long perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
                             int cpu, int group_fd, unsigned long flags)
 {
-    int ret;
-
     hw_event->size = sizeof(*hw_event);
-    ret = syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
-
-    return ret;
+    return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
 bool PerfCollector::available()
@@ -104,24 +162,22 @@ bool PerfCollector::available()
     return true;
 }
 
-static int add_event(int type, int config, int group, int tid, bool exclude_user = false,
-                        bool exclude_kernel = false, enum hw_cnt_length len = hw_cnt_length::b32)
+static int add_event(const struct event &e, int tid, int cpu, int group = -1)
 {
-    struct perf_event_attr pe;
+    struct perf_event_attr pe = {0};
 
-    memset(&pe, 0, sizeof(struct perf_event_attr));
-    pe.type = type;
+    pe.type = e.type;
     pe.size = sizeof(struct perf_event_attr);
-    pe.config = config;
-    pe.config1 = (len == hw_cnt_length::b32) ? 0 : 1;
+    pe.config = e.config;
+    pe.config1 = (e.len == hw_cnt_length::b32) ? 0 : 1;
     pe.disabled = 1;
     pe.inherit = 1;
-    pe.exclude_user = exclude_user;
-    pe.exclude_kernel = exclude_kernel;
+    pe.exclude_user = e.exc_user;
+    pe.exclude_kernel = e.exc_kernel;
     pe.exclude_hv = 0;
     pe.read_format = PERF_FORMAT_GROUP;
 
-    const int fd = perf_event_open(&pe, tid, -1, group, 0);
+    const int fd = perf_event_open(&pe, tid, cpu, group, 0);
     if (fd < 0)
     {
         DBG_LOG("Error opening perf: error %d\n", errno);
@@ -142,10 +198,13 @@ bool PerfCollector::init()
     create_perf_thread();
 
     for (perf_thread& t : mReplayThreads)
-        t.eventCtx.init(t.tid, mEvents);
+        t.eventCtx.init(mEvents, t.tid, -1);
 
     for (perf_thread& t : mBgThreads)
-        t.eventCtx.init(t.tid, mEvents);
+        t.eventCtx.init(mEvents, t.tid, -1);
+
+    for (perf_thread& t : mBookerThread)
+        t.eventCtx.init(mBookerEvents, -1, 0);
 
     return true;
 }
@@ -153,14 +212,29 @@ bool PerfCollector::init()
 bool PerfCollector::deinit()
 {
     for (perf_thread& t : mReplayThreads)
-       t.eventCtx.deinit();
+    {
+        t.eventCtx.deinit();
+        t.clear();
+    }
 
     for (perf_thread& t : mBgThreads)
-       t.eventCtx.deinit();
+    {
+        t.eventCtx.deinit();
+        t.clear();
+    }
+
+    for (perf_thread& t : mBookerThread)
+    {
+        t.eventCtx.deinit();
+        t.clear();
+    }
 
     mEvents.clear();
+    mBookerEvents.clear();
+
     mReplayThreads.clear();
     mBgThreads.clear();
+    mBookerThread.clear();
 
     clear();
 
@@ -180,6 +254,10 @@ bool PerfCollector::start()
         if ( !t.eventCtx.start() )
             return false;
 
+    for (perf_thread& t: mBookerThread)
+        if ( !t.eventCtx.start() )
+            return false;
+
     mCollecting = true;
     return true;
 }
@@ -188,12 +266,6 @@ void PerfCollector::clear()
 {
     if (mCollecting)
         return;
-
-    for (perf_thread& t: mReplayThreads)
-        t.clear();
-
-    for (perf_thread& t: mBgThreads)
-        t.clear();
 
     Collector::clear();
 }
@@ -215,6 +287,11 @@ bool PerfCollector::stop()
        t.eventCtx.stop();
     }
 
+    for (perf_thread& t : mBookerThread)
+    {
+        t.eventCtx.stop();
+    }
+
     mCollecting = false;
 
     return true;
@@ -225,7 +302,6 @@ bool PerfCollector::collect(int64_t now)
     if (!mCollecting)
         return false;
 
-    struct snapshot snap;
     for (perf_thread& t : mReplayThreads)
     {
         snap = t.eventCtx.collect(now);
@@ -233,6 +309,12 @@ bool PerfCollector::collect(int64_t now)
     }
 
     for (perf_thread& t : mBgThreads)
+    {
+        snap = t.eventCtx.collect(now);
+        t.update_data(snap);
+    }
+
+    for (perf_thread& t : mBookerThread)
     {
         snap = t.eventCtx.collect(now);
         t.update_data(snap);
@@ -252,6 +334,10 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
     replayValue["CCthread"] = "replayMainThreads";
 
     for (perf_thread& t : mReplayThreads)
+    {
+        t.postprocess(replayValue);
+    }
+    for (perf_thread& t : mBookerThread)
     {
         t.postprocess(replayValue);
     }
@@ -290,21 +376,25 @@ void PerfCollector::summarize()
     {
         t.summarize();
     }
+
+    for (perf_thread& t : mBookerThread)
+    {
+        t.summarize();
+    }
 }
 
-bool event_context::init(int tid, std::vector<struct event> &events)
+bool event_context::init(std::vector<struct event> &events, int tid, int cpu)
 {
     struct counter grp;
-
-    grp.fd = group = add_event(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, -1, tid);
-    grp.name = "CPUCycleCount";
+    grp.fd = group = add_event(events[0], tid, cpu);
+    grp.name = events[0].name;
     mCounters.push_back(grp);
 
-    for (const struct event& e : events)
+    for (size_t i=1; i<events.size(); i++)
     {
         struct counter c;
-        c.fd = add_event(e.type, e.config, group, tid, e.exc_user, e.exc_kernel, e.len);
-        c.name = e.name;
+        c.fd = add_event(events[i], tid, cpu, group);
+        c.name = events[i].name;
         mCounters.push_back(c);
     }
 
@@ -404,6 +494,11 @@ void PerfCollector::create_perf_thread()
         }
     }
     closedir(dirp);
+
+    if (mBookerEvents.size() > 0)
+    {
+        mBookerThread.emplace_back(getpid(), current_pName);
+    }
 }
 
 static void writeCSV(int tid, std::string name, CollectorValueResults &results)
