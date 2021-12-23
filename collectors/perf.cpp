@@ -302,6 +302,7 @@ bool PerfCollector::collect(int64_t now)
     if (!mCollecting)
         return false;
 
+    struct snapshot snap;
     for (perf_thread& t : mReplayThreads)
     {
         snap = t.eventCtx.collect(now);
