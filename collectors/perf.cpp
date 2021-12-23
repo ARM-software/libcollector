@@ -76,7 +76,6 @@ static inline uint64_t makeup_booker_ci_config(int nodetype, int eventid, int by
     //bitfields in attr.config. nodeid: GENMASK(47, 32)).     bynodeid: BIT(31)).      eventId: GENMASK(23, 16)).      nodetype: GENMASK(15, 0)
     config = ((nodeid << 32) & 0x0000FFFF00000000) | ((bynodeid << 31) & 0x80000000) | ((eventid << 16) & 0x00FF0000) | (nodetype & 0x0000FFFF);
 
-    DBG_LOG("booker-ci event config 0x%lx, %ld\n", config, config);
     return config;
 }
 
