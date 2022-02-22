@@ -54,12 +54,8 @@ bool GPUFreqCollector::parse(const char* buffer)
             freq = 0;
         }
         // on qcom, they store hz, not mhz... so transform to mhz
-        if (freq > ONE_MILLION)
-        {
-            freq /= ONE_MILLION;
-        }
     }
-    add("gpufreq", freq * 1000);
+    add("gpufreq");
 
     return true;
 }
