@@ -9,7 +9,6 @@ set(LAYER_SOURCES
     ${PROJECT_DIR}/interface.cpp
     ${PROJECT_DIR}/collectors/collector_utility.cpp
     ${PROJECT_DIR}/collectors/cputemp.cpp
-    ${PROJECT_DIR}/collectors/debug.cpp
     ${PROJECT_DIR}/collectors/rusage.cpp
     ${PROJECT_DIR}/collectors/streamline.cpp
     ${PROJECT_DIR}/collectors/streamline_annotate.cpp
