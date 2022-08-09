@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.6.0)
+project(libcollector)
 
 set(PROJECT_DIR ${CMAKE_SOURCE_DIR}/../../../)
-set(THIRD_PARTY_DIR ${PROJECT_DIR}/thirdparty)
+set(THIRD_PARTY_DIR ${PROJECT_DIR}/external)
 set(SOURCE_DIR ${PROJECT_DIR}/collectors)
 
 add_definitions(-DANDROID_STL="c++_shared")
@@ -23,17 +24,15 @@ set(COLLECTOR_SOURCES
     ${SOURCE_DIR}/procfs_stat.cpp
     ${SOURCE_DIR}/hwcpipe.cpp
     ${SOURCE_DIR}/mali_counters.cpp
-    ${THIRD_PARTY_DIR}/jsoncpp/json_writer.cpp
-    ${THIRD_PARTY_DIR}/jsoncpp/json_reader.cpp
-    ${THIRD_PARTY_DIR}/jsoncpp/json_value.cpp)
+    ${THIRD_PARTY_DIR}/jsoncpp/src/lib_json/json_writer.cpp
+    ${THIRD_PARTY_DIR}/jsoncpp/src/lib_json/json_reader.cpp
+    ${THIRD_PARTY_DIR}/jsoncpp/src/lib_json/json_value.cpp)
 
 set(BURROW_SOURCES ${PROJECT_DIR}/burrow.cpp)
 
 set(TARGET_INCLUDE_DIRS
     ${SOURCE_DIR}
-    ${THIRD_PARTY_DIR}
-    ${THIRD_PARTY_DIR}/jsoncpp
-    ${THIRD_PARTY_DIR}/jsoncpp/json
+    ${THIRD_PARTY_DIR}/jsoncpp/include
     ${PROJECT_DIR})
 
 include_directories(${TARGET_INCLUDE_DIRS})

@@ -37,26 +37,25 @@ LOCAL_SRC_FILES 	:=  \
                     ../../collectors/procfs_stat.cpp \
                     ../../collectors/hwcpipe.cpp \
                     ../../collectors/mali_counters.cpp \
-                    ../../thirdparty/jsoncpp/json_writer.cpp \
-                    ../../thirdparty/jsoncpp/json_reader.cpp \
-                    ../../thirdparty/jsoncpp/json_value.cpp
+                    ../../external/jsoncpp/src/lib_json/json_writer.cpp \
+                    ../../external/jsoncpp/src/lib_json/json_reader.cpp \
+                    ../../external/jsoncpp/src/lib_json/json_value.cpp
 
 LOCAL_C_INCLUDES 	:= \
                     $(LOCAL_PATH)/../../collectors \
-                    $(LOCAL_PATH)/../../thirdparty \
-                    $(LOCAL_PATH)/../../thirdparty/jsoncpp \
-                    $(LOCAL_PATH)/../../thirdparty/jsoncpp/json \
+                    $(LOCAL_PATH)/../../external/jsoncpp/include \
                     $(LOCAL_PATH)/../..
 
 LOCAL_CFLAGS 		:= -O3 -frtti -D__arm__ -D__gnu_linux__
 LOCAL_CPPFLAGS          += -std=c++11
+LOCAL_CPP_FEATURES      += exceptions
 
 ifeq ($(TARGET_ARCH_ABI),x86)
 LOCAL_CFLAGS		+= -Wno-attributes
 endif
 
-LOCAL_STATIC_LIBRARIES := android_native_app_glue
-LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/../../thirdparty/
+LOCAL_STATIC_LIBRARIES :=
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/../../external/
 
 include $(BUILD_STATIC_LIBRARY)
 
@@ -65,13 +64,12 @@ LOCAL_MODULE_FILENAME := burrow
 LOCAL_SRC_FILES := ../../burrow.cpp
 LOCAL_C_INCLUDES := \
                     $(LOCAL_PATH)/../../collectors \
-                    $(LOCAL_PATH)/../../thirdparty \
-                    $(LOCAL_PATH)/../../thirdparty/jsoncpp \
-                    $(LOCAL_PATH)/../../thirdparty/jsoncpp/json \
+                    $(LOCAL_PATH)/../../external/jsoncpp/include\
                     $(LOCAL_PATH)/../..
 
 LOCAL_LDLIBS    := -L$(SYSROOT)/usr/lib -llog -latomic
 
-LOCAL_STATIC_LIBRARIES := android_native_app_glue collector_android
+LOCAL_STATIC_LIBRARIES := collector_android
+LOCAL_CPP_FEATURES     += exceptions
 
 include $(BUILD_EXECUTABLE)
