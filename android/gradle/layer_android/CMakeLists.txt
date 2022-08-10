@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.6.0)
+project(layer_android)
 
 set(PROJECT_DIR ${CMAKE_SOURCE_DIR}/../../../)
 
@@ -22,17 +23,16 @@ set(LAYER_SOURCES
     ${PROJECT_DIR}/collectors/mali_counters.cpp
     ${PROJECT_DIR}/collectors/ferret.cpp
     ${PROJECT_DIR}/layer/vulkan_layer.cpp
-    ${PROJECT_DIR}/thirdparty/jsoncpp/json_reader.cpp
-    ${PROJECT_DIR}/thirdparty/jsoncpp/json_value.cpp
-    ${PROJECT_DIR}/thirdparty/jsoncpp/json_writer.cpp)
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_reader.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_value.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_writer.cpp)
 
 
 set(TARGET_INCLUDE_DIRS
     PUBLIC  ${PROJECT_DIR}
     PRIVATE ${PROJECT_DIR}/collectors
-    PUBLIC  ${PROJECT_DIR}/thirdparty
-    PRIVATE ${PROJECT_DIR}/thirdparty/jsoncpp
-    PRIVATE ${PROJECT_DIR}/thirdparty/Vulkan-Headers/include
+    PRIVATE ${PROJECT_DIR}/external/jsoncpp/include
+    PRIVATE ${PROJECT_DIR}/external/Vulkan-Headers/include
     PRIVATE ${PROJECT_DIR}/layer)
 
 include_directories(${TARGET_INCLUDE_DIRS})
