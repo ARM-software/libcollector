@@ -130,4 +130,23 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkQueuePresentKHR(
     VkQueue queue,
     const VkPresentInfoKHR* pPresentInfo);
 
+VkResult lc_vkEnumerateInstanceExtensionProperties(
+    const VkEnumerateInstanceExtensionPropertiesChain* pChain,
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties);
+
+VkResult lc_vkEnumerateInstanceLayerProperties(
+    const vkEnumerateInstanceLayerPropertiesChain* pChain,
+    uint32_t* pPropertyCount,
+    VkLayerProperties* pProperties);
+
+VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateDeviceExtensionProperties(
+    const vkEnumerateDeviceExtensionPropertiesChain* pChain,
+    VkPhysicalDevice physicalDevice,
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties);
+
+
 #endif
