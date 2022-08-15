@@ -2,10 +2,6 @@
 
 static std::mutex context_mutex;
 static std::unordered_map<VkInstance, InstanceDispatchTable*> instance_dispatch_map;
-#ifdef ANDROID
-static bool layer_enumeration_table_initialized = false;
-static InstanceEnumerationTable layer_enumeration_table = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-#endif
 static std::unordered_map<VkDevice, vkCollectorContext*> device_to_context_map;
 static std::unordered_map<VkQueue, vkCollectorContext*> queue_to_context_map;
 
@@ -103,11 +99,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
     if(!strcmp(pName, "vkCreateInstance")) return (PFN_vkVoidFunction)&lc_vkCreateInstance;
     if(!strcmp(pName, "vkCreateDevice")) return (PFN_vkVoidFunction)&lc_vkCreateDevice;
     if(!strcmp(pName, "vkDestroyInstance")) return (PFN_vkVoidFunction)&lc_vkDestroyInstance;
-
-#ifdef ANDROID
     if(!strcmp(pName, "vkEnumerateInstanceLayerProperties")) return (PFN_vkVoidFunction)&lc_vkEnumerateInstanceLayerProperties;
     if(!strcmp(pName, "vkEnumerateInstanceExtensionProperties")) return (PFN_vkVoidFunction)&lc_vkEnumerateInstanceExtensionProperties;
-#endif
 
     context_mutex.lock();
     InstanceDispatchTable* instance_dtable = instance_dispatch_map[instance];
@@ -168,14 +161,6 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkCreateInstance(
 
     context_mutex.lock();
     instance_dispatch_map[*pInstance] = new_table;
-
-#ifdef ANDROID
-    if (!layer_enumeration_table_initialized) {
-        layer_enumeration_table_initialized = true;
-        layer_enumeration_table.nextEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)gipa(VK_NULL_HANDLE, "vkEnumerateInstanceLayerProperties");
-        layer_enumeration_table.nextEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)gipa(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties");
-    }
-#endif
 
     context_mutex.unlock();
 
@@ -316,16 +301,25 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkQueuePresentKHR(
     return nextQueuePresentKHR(queue, pPresentInfo);
 }
 
-#ifdef ANDROID
+
+// Pre-instance functions
+
 VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceLayerProperties(
     uint32_t* pPropertyCount,
     VkLayerProperties* pProperties
 ) {
-    if (!layer_enumeration_table_initialized) {
-        return VK_SUCCESS;
+    if (pProperties == NULL) {
+        *pPropertyCount = 1;
     } else {
-        return layer_enumeration_table.nextEnumerateInstanceLayerProperties(pPropertyCount, pProperties);
+        const char* layer_name = "VK_LAYER_ARM_libcollector";
+        strncpy(pProperties[0].layerName, layer_name, strlen(layer_name) + 1);
+        pProperties[0].specVersion = VK_MAKE_API_VERSION(0, 1, 1, 2);
+        pProperties[0].implementationVersion = 2;
+        const char* layer_description = "ARM libcollector layer implementation.";
+        strncpy(pProperties[0].description, layer_description, strlen(layer_description) + 1);
     }
+
+    return VK_SUCCESS;
 }
 
 VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceExtensionProperties(
@@ -333,17 +327,19 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceExtensionProperties(
     uint32_t* pPropertyCount,
     VkExtensionProperties* pProperties
 ) {
-    if (!layer_enumeration_table_initialized) {
+    if (pLayerName == NULL) {
+        return VK_ERROR_LAYER_NOT_PRESENT;
+    } else if (!strcmp(pLayerName, "VK_LAYER_ARM_libcollector")) {
+        *pPropertyCount = 0;
         return VK_SUCCESS;
-    } else {
-        return layer_enumeration_table.nextEnumerateInstanceExtensionProperties(pLayerName, pPropertyCount, pProperties);
     }
+
+    return VK_ERROR_LAYER_NOT_PRESENT;
 }
-#endif
 
-// Pre-instance functions, necessary because android is a special snowflake (and not in a good way)
+// Pre-instance interface functions, not currently in use, but can be enabled if/when we update to manifest format 1.2.1
 
-VkResult lc_vkEnumerateInstanceExtensionProperties(
+VkResult lc_pre_vkEnumerateInstanceExtensionProperties(
     const VkEnumerateInstanceExtensionPropertiesChain* pChain,
     const char* pLayerName,
     uint32_t* pPropertyCount,
@@ -358,7 +354,7 @@ VkResult lc_vkEnumerateInstanceExtensionProperties(
     return VK_ERROR_LAYER_NOT_PRESENT;
 }
 
-VkResult lc_vkEnumerateInstanceLayerProperties(
+VkResult lc_pre_vkEnumerateInstanceLayerProperties(
     const VkEnumerateInstanceLayerPropertiesChain* pChain,
     uint32_t* pPropertyCount,
     VkLayerProperties* pProperties
@@ -376,17 +372,6 @@ VkResult lc_vkEnumerateInstanceLayerProperties(
 
     return VK_SUCCESS;
 }
-
-/*
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateDeviceExtensionProperties(
-    VkPhysicalDevice physicalDevice,
-    const char* pLayerName,
-    uint32_t* pPropertyCount,
-    VkExtensionProperties* pProperties
-) {
-    pChain->pfnNextLayer(pChain->pNextLink, physicalDevice, pLayerName, pPropertyCount, pProperties);
-}
-*/
 
 
 // Context
