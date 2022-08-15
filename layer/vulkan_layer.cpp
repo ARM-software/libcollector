@@ -351,7 +351,7 @@ VkResult lc_vkEnumerateInstanceExtensionProperties(
 ) {
     if (pLayerName == NULL) {
         return VK_ERROR_LAYER_NOT_PRESENT;
-    } else if (pLayerName == "VK_LAYER_ARM_libcollector") {
+    } else if (!strcmp(pLayerName, "VK_LAYER_ARM_libcollector")) {
         return pChain->pfnNextLayer(pChain->pNextLink, pLayerName, pPropertyCount, pProperties);
     }
 
@@ -359,24 +359,26 @@ VkResult lc_vkEnumerateInstanceExtensionProperties(
 }
 
 VkResult lc_vkEnumerateInstanceLayerProperties(
-    const vkEnumerateInstanceLayerPropertiesChain* pChain,
+    const VkEnumerateInstanceLayerPropertiesChain* pChain,
     uint32_t* pPropertyCount,
     VkLayerProperties* pProperties
 ) {
     if (pProperties == nullptr) {
         *pPropertyCount = 1;
     } else {
-        pProperties[0].layerName = "VK_LAYER_ARM_libcollector";
+        const char* layer_name = "VK_LAYER_ARM_libcollector";
+        strncpy(pProperties[0].layerName, layer_name, strlen(layer_name) + 1);
         pProperties[0].specVersion = VK_MAKE_API_VERSION(0, 1, 1, 2);
         pProperties[0].implementationVersion = 2;
-        pProperties[0].description = "ARM libcollector layer implementation.";
+        const char* layer_description = "ARM libcollector layer implementation.";
+        strncpy(pProperties[0].description, layer_description, strlen(layer_description) + 1);
     }
 
     return VK_SUCCESS;
 }
 
+/*
 VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateDeviceExtensionProperties(
-    const vkEnumerateDeviceExtensionPropertiesChain* pChain,
     VkPhysicalDevice physicalDevice,
     const char* pLayerName,
     uint32_t* pPropertyCount,
@@ -384,6 +386,7 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateDeviceExtensionProperties(
 ) {
     pChain->pfnNextLayer(pChain->pNextLink, physicalDevice, pLayerName, pPropertyCount, pProperties);
 }
+*/
 
 
 // Context

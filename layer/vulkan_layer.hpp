@@ -137,16 +137,17 @@ VkResult lc_vkEnumerateInstanceExtensionProperties(
     VkExtensionProperties* pProperties);
 
 VkResult lc_vkEnumerateInstanceLayerProperties(
-    const vkEnumerateInstanceLayerPropertiesChain* pChain,
+    const VkEnumerateInstanceLayerPropertiesChain* pChain,
     uint32_t* pPropertyCount,
     VkLayerProperties* pProperties);
 
+/*
 VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateDeviceExtensionProperties(
-    const vkEnumerateDeviceExtensionPropertiesChain* pChain,
     VkPhysicalDevice physicalDevice,
     const char* pLayerName,
     uint32_t* pPropertyCount,
     VkExtensionProperties* pProperties);
+*/
 
 
 #endif
