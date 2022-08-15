@@ -341,6 +341,51 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceExtensionProperties(
 }
 #endif
 
+// Pre-instance functions, necessary because android is a special snowflake (and not in a good way)
+
+VkResult lc_vkEnumerateInstanceExtensionProperties(
+    const VkEnumerateInstanceExtensionPropertiesChain* pChain,
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties
+) {
+    if (pLayerName == NULL) {
+        return VK_ERROR_LAYER_NOT_PRESENT;
+    } else if (pLayerName == "VK_LAYER_ARM_libcollector") {
+        return pChain->pfnNextLayer(pChain->pNextLink, pLayerName, pPropertyCount, pProperties);
+    }
+
+    return VK_ERROR_LAYER_NOT_PRESENT;
+}
+
+VkResult lc_vkEnumerateInstanceLayerProperties(
+    const vkEnumerateInstanceLayerPropertiesChain* pChain,
+    uint32_t* pPropertyCount,
+    VkLayerProperties* pProperties
+) {
+    if (pProperties == nullptr) {
+        *pPropertyCount = 1;
+    } else {
+        pProperties[0].layerName = "VK_LAYER_ARM_libcollector";
+        pProperties[0].specVersion = VK_MAKE_API_VERSION(0, 1, 1, 2);
+        pProperties[0].implementationVersion = 2;
+        pProperties[0].description = "ARM libcollector layer implementation.";
+    }
+
+    return VK_SUCCESS;
+}
+
+VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateDeviceExtensionProperties(
+    const vkEnumerateDeviceExtensionPropertiesChain* pChain,
+    VkPhysicalDevice physicalDevice,
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties
+) {
+    pChain->pfnNextLayer(pChain->pNextLink, physicalDevice, pLayerName, pPropertyCount, pProperties);
+}
+
+
 // Context
 
 vkCollectorContext::vkCollectorContext():
