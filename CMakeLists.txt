@@ -1,6 +1,6 @@
 project(collector)
-
 cmake_minimum_required(VERSION 3.1)
+enable_testing()
 
 set(SRC_ROOT ".")
 
@@ -67,6 +67,7 @@ add_executable(test_app ${SRC_ROOT}/test.cpp)
 target_link_libraries(test_app collector)
 set_target_properties(test_app PROPERTIES LINK_FLAGS "-pthread" COMPILE_FLAGS "-pthread")
 target_include_directories(test_app ${COLLECTOR_INCLUDES})
+add_test(NAME test_app COMMAND ${CMAKE_CURRENT_BINARY_DIR}/test_app)
 
 # --- burrow ---
 
