@@ -4,6 +4,7 @@ import operator
 import json
 import scipy.stats as st
 import argparse
+from functools import reduce
 
 
 # scaling of CPU frequency in kHz to MHz
@@ -21,7 +22,7 @@ def process_trace(traceFile, traceProperties):
     def process_info(properties, infoRow, state):
 
         infoMap = {'_SC_CLK_TCK': lambda x: ('tick', int(x[0])),
-                   'CPUList': lambda x: ('cpus', map(int, x)),
+                   'CPUList': lambda x: [int(i) for i in x],
                    'WatchList': lambda x: ('watch', x),
                    'Status': lambda x: ('stat_fields', x)}
 
