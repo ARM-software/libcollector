@@ -13,83 +13,83 @@ statFields = "pid comm ppid utime stime cutime cstime num_threads starttime proc
 
 if __name__ == "__main__":
 
-	traceNames = sys.argv[1:]
+    traceNames = sys.argv[1:]
 
-	if not os.path.exists( outDir ):
-		os.mkdir( outDir )
+    if not os.path.exists(outDir):
+        os.mkdir(outDir)
 
-	for traceName in traceNames:
+    for traceName in traceNames:
 
-		outFile = os.path.join( outDir, traceName )
+        outFile = os.path.join(outDir, traceName)
 
-		with open(traceName, 'r') as traceFile:
+        with open(traceName, 'r') as traceFile:
 
-			with open(outFile, 'w') as newTraceFile:
+            with open(outFile, 'w') as newTraceFile:
 
-				header = list()
-				header.append( "# Converted by ferret1to2.py" )
-				header.append( "I _SC_CLK_TCK 100" )
-				header.append( "I Status %s" % statFields )
-				header.append( "" )
+                header = list()
+                header.append("# Converted by ferret1to2.py")
+                header.append("I _SC_CLK_TCK 100")
+                header.append("I Status %s" % statFields)
+                header.append("")
 
-				header = "\n".join( header )
-				newTraceFile.write( header )
+                header = "\n".join(header)
+                newTraceFile.write(header)
 
-				cpuList = None
+                cpuList = None
 
-				for row in traceFile:
-					records = row.split(',')
+                for row in traceFile:
+                    records = row.split(',')
 
-					if len(records) < 3:
-						# v1 had a habit of writing partial sample rows
-						# when interrupted.
-						#
-						continue
+                    if len(records) < 3:
+                        # v1 had a habit of writing partial sample rows
+                        # when interrupted.
+                        #
+                        continue
 
-					assert len(records) > 1, row
+                    assert len(records) > 1, row
 
-					# v2 timestamps are integer microseconds, not seconds with microsecond
-					# resolution
-					#
-					now = int( float(records[0]) * 1.0e6 )
-					status = list()
-					cpuFreq = list()
+                    # v2 timestamps are integer microseconds, not seconds with microsecond
+                    # resolution
+                    #
+                    now = int(float(records[0]) * 1.0e6)
+                    status = list()
+                    cpuFreq = list()
 
-					for r in records[1:]:
+                    for r in records[1:]:
 
-						if r[0] == 's':
+                        if r[0] == 's':
 
-							state = r.split()[1:]
-							del state[2]	# delete "state" field from stat
-							status.append( " ".join( state ) )
+                            state = r.split()[1:]
+                            del state[2]  # delete "state" field from stat
+                            status.append(" ".join(state))
 
-						elif r[0] == 'f':
+                        elif r[0] == 'f':
 
-							raw = r.split()[1:]
-							cpus = raw[0:-1:2]
-							freqs = raw[1::2]
+                            raw = r.split()[1:]
+                            cpus = raw[0:-1:2]
+                            freqs = raw[1::2]
 
-							# cpus are labelled cpu[0-9]+ so just extract the digit(s)
-							#
-							cpus = [ c[3:] for c in cpus]
+                            # cpus are labelled cpu[0-9]+ so just extract the digit(s)
+                            #
+                            cpus = [c[3:] for c in cpus]
 
-							if not cpuList:
-								# use the first CPU DVFS record to declare the CPU set being
-								# sampled
-								#
-								cpuList = cpus[:]
-								newTraceFile.write( "I CPUList %s\n" % " ".join( cpus ) )
+                            if not cpuList:
+                                # use the first CPU DVFS record to declare the CPU set being
+                                # sampled
+                                #
+                                cpuList = cpus[:]
+                                newTraceFile.write("I CPUList %s\n" % " ".join(cpus))
 
-							# and put it all back together again
-							#
-							cpuFreq.append( " ".join( sum( zip( cpus, freqs ), () ) ) )
+                            # and put it all back together again
+                            #
+                            cpuFreq.append(" ".join(sum(zip(cpus, freqs), ())))
 
-						else:
-							assert False, ("Unrecognised record", r[0], row)
+                        else:
+                            assert False, ("Unrecognised record", r[0], row)
 
-					assert len(cpuFreq) == 1, (row, cpuFreq)
+                    assert len(cpuFreq) == 1, (row, cpuFreq)
 
-					newTraceFile.write( "T %s\n" % now )
-					newTraceFile.write( "F %s\n" % cpuFreq[0] )
-					for s in status:
-						newTraceFile.write( "S %s\n" % s )
+                    newTraceFile.write("T %s\n" % now)
+                    newTraceFile.write("F %s\n" % cpuFreq[0])
+                    for s in status:
+                        newTraceFile.write("S %s\n" % s)
