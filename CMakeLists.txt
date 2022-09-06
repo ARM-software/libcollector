@@ -15,7 +15,9 @@ set(COLLECTOR_INCLUDES
     PRIVATE ${SRC_ROOT}/collectors
     PUBLIC ${SRC_ROOT}/external
     PRIVATE ${SRC_ROOT}/external/jsoncpp/include
-)
+    PRIVATE ${SRC_ROOT}/external/jsoncpp/src/lib_json
+    PRIVATE ${SRC_ROOT}/external/jsoncpp/include/json)
+
 set(COLLECTOR_SRC
         ${SRC_ROOT}/interface.cpp
         ${SRC_ROOT}/collectors/collector_utility.cpp
@@ -32,10 +34,11 @@ set(COLLECTOR_SRC
         ${SRC_ROOT}/collectors/hwcpipe.cpp
         ${SRC_ROOT}/collectors/mali_counters.cpp
         ${SRC_ROOT}/collectors/ferret.cpp
+        ${SRC_ROOT}/external/jsoncpp/src/lib_json/json_tool.h
         ${SRC_ROOT}/external/jsoncpp/src/lib_json/json_reader.cpp
+        ${SRC_ROOT}/external/jsoncpp/src/lib_json/json_valueiterator.inl
         ${SRC_ROOT}/external/jsoncpp/src/lib_json/json_value.cpp
-        ${SRC_ROOT}/external/jsoncpp/src/lib_json/json_writer.cpp
-)
+        ${SRC_ROOT}/external/jsoncpp/src/lib_json/json_writer.cpp)
 
 # --- library ---
 
