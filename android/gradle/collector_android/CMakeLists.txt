@@ -1,39 +1,41 @@
 cmake_minimum_required(VERSION 3.6.0)
-project(libcollector)
 
 set(PROJECT_DIR ${CMAKE_SOURCE_DIR}/../../../)
-set(THIRD_PARTY_DIR ${PROJECT_DIR}/external)
-set(SOURCE_DIR ${PROJECT_DIR}/collectors)
 
 add_definitions(-DANDROID_STL="c++_shared")
 add_definitions(-DANDROID_CPP_FEATURES="exceptions")
 
+set(TARGET_INCLUDE_DIRS
+    ${PROJECT_DIR}/collectors
+    ${PROJECT_DIR}/external
+    ${PROJECT_DIR}/external/jsoncpp/include
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/
+    ${PROJECT_DIR}/external/jsoncpp/include/json
+    ${PROJECT_DIR})
+
 set(COLLECTOR_SOURCES
     ${PROJECT_DIR}/interface.cpp
-    ${SOURCE_DIR}/collector_utility.cpp
-    ${SOURCE_DIR}/cputemp.cpp
-    ${SOURCE_DIR}/ferret.cpp
-    ${SOURCE_DIR}/rusage.cpp
-    ${SOURCE_DIR}/streamline.cpp
-    ${SOURCE_DIR}/streamline_annotate.cpp
-    ${SOURCE_DIR}/memory.cpp
-    ${SOURCE_DIR}/cpufreq.cpp
-    ${SOURCE_DIR}/gpufreq.cpp
-    ${SOURCE_DIR}/perf.cpp
-    ${SOURCE_DIR}/power.cpp
-    ${SOURCE_DIR}/procfs_stat.cpp
-    ${SOURCE_DIR}/hwcpipe.cpp
-    ${SOURCE_DIR}/mali_counters.cpp
-    ${THIRD_PARTY_DIR}/jsoncpp/src/lib_json/json_writer.cpp
-    ${THIRD_PARTY_DIR}/jsoncpp/src/lib_json/json_reader.cpp
-    ${THIRD_PARTY_DIR}/jsoncpp/src/lib_json/json_value.cpp)
+    ${PROJECT_DIR}/collectors/collector_utility.cpp
+    ${PROJECT_DIR}/collectors/cputemp.cpp
+    ${PROJECT_DIR}/collectors/ferret.cpp
+    ${PROJECT_DIR}/collectors/rusage.cpp
+    ${PROJECT_DIR}/collectors/streamline.cpp
+    ${PROJECT_DIR}/collectors/streamline_annotate.cpp
+    ${PROJECT_DIR}/collectors/memory.cpp
+    ${PROJECT_DIR}/collectors/cpufreq.cpp
+    ${PROJECT_DIR}/collectors/gpufreq.cpp
+    ${PROJECT_DIR}/collectors/perf.cpp
+    ${PROJECT_DIR}/collectors/power.cpp
+    ${PROJECT_DIR}/collectors/procfs_stat.cpp
+    ${PROJECT_DIR}/collectors/hwcpipe.cpp
+    ${PROJECT_DIR}/collectors/mali_counters.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_tool.h
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_reader.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_valueiterator.inl
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_value.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_writer.cpp)
 
 set(BURROW_SOURCES ${PROJECT_DIR}/burrow.cpp)
-
-set(TARGET_INCLUDE_DIRS
-    ${SOURCE_DIR}
-    ${THIRD_PARTY_DIR}/jsoncpp/include
-    ${PROJECT_DIR})
 
 include_directories(${TARGET_INCLUDE_DIRS})
 

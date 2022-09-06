@@ -1,10 +1,19 @@
 cmake_minimum_required(VERSION 3.6.0)
-project(layer_android)
 
 set(PROJECT_DIR ${CMAKE_SOURCE_DIR}/../../../)
 
 add_definitions(-DANDROID_STL="c++_shared")
 add_definitions(-DANDROID_CPP_FEATURES="exceptions")
+
+set(TARGET_INCLUDE_DIRS
+    PUBLIC  ${PROJECT_DIR}
+    PRIVATE ${PROJECT_DIR}/collectors
+    PUBLIC  ${PROJECT_DIR}/external
+    PRIVATE ${PROJECT_DIR}/external/Vulkan-Headers/include
+    PRIVATE ${PROJECT_DIR}/layer
+    PRIVATE ${PROJECT_DIR}/external/jsoncpp/include
+    PRIVATE ${PROJECT_DIR}/external/jsoncpp/src/lib_json
+    PRIVATE ${PROJECT_DIR}/external/jsoncpp/include/json)
 
 set(LAYER_SOURCES
     ${PROJECT_DIR}/interface.cpp
@@ -23,17 +32,11 @@ set(LAYER_SOURCES
     ${PROJECT_DIR}/collectors/mali_counters.cpp
     ${PROJECT_DIR}/collectors/ferret.cpp
     ${PROJECT_DIR}/layer/vulkan_layer.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_tool.h
     ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_reader.cpp
+    ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_valueiterator.inl
     ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_value.cpp
     ${PROJECT_DIR}/external/jsoncpp/src/lib_json/json_writer.cpp)
-
-
-set(TARGET_INCLUDE_DIRS
-    PUBLIC  ${PROJECT_DIR}
-    PRIVATE ${PROJECT_DIR}/collectors
-    PRIVATE ${PROJECT_DIR}/external/jsoncpp/include
-    PRIVATE ${PROJECT_DIR}/external/Vulkan-Headers/include
-    PRIVATE ${PROJECT_DIR}/layer)
 
 include_directories(${TARGET_INCLUDE_DIRS})
 
