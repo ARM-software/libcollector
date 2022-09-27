@@ -188,9 +188,30 @@ SysfsCollector::~SysfsCollector()
 
 // ---------- COLLECTION ----------
 
+Collection::Collection(const std::string& config_str)
+{
+
+    Json::Value jsonConfig;
+    Json::Reader reader;
+    bool success = reader.parse(config_str.c_str(), jsonConfig);
+    if (success)
+    {
+        std::string emsg = reader.getFormattedErrorMessages();
+        DBG_LOG("Failed to parse config json string in constructor: %s\n", emsg.c_str());
+    }
+
+    mConfig = jsonConfig;
+    init_from_json(jsonConfig);
+}
+
 Collection::Collection(const Json::Value& config) : mConfig(config)
 {
-#ifndef __APPLE__
+    init_from_json(config);
+}
+
+void Collection::init_from_json(const Json::Value& config)
+{
+    #ifndef __APPLE__
     mCollectors.push_back(new PerfCollector(config, "perf"));
     mCollectors.push_back(new SysfsCollector(config, "battery_temperature",
         { "/sys/class/power_supply/battery/temp",

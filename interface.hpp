@@ -13,6 +13,7 @@
 #include <chrono>
 
 #include "json/value.h"
+#include "json/reader.h"
 
 #ifndef DBG_LOG
 #ifdef ANDROID
@@ -183,6 +184,7 @@ private:
 class Collection
 {
 public:
+    Collection(const std::string& config_str);
     Collection(const Json::Value& config);
     ~Collection();
 
@@ -252,6 +254,8 @@ public:
     const Json::Value& config() { return mConfig; }
 
 private:
+    void init_from_json(const Json::Value& config);
+
     bool running = false;
     Json::Value mConfig;
     std::vector<Collector*> mCollectors;
