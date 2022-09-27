@@ -462,14 +462,27 @@ Json::Value Collection::results()
     results["timing"] = v;
     if (mTimingSummarized.size() > 0)
     {
+        int64_t sum = 0;
         for (int64_t t : mTimingSummarized)
         {
             results["timing"]["time"].append(static_cast<Json::Value::Int64>(t));
+            sum += t;
         }
+
+        double timeInSeconds = (double)sum / 1000000.0;
+        results["timing"]["samples_per_second"] = (double)mTimingSummarized.size() / timeInSeconds;
     }
-    else for (int64_t t : mTiming)
+    else
     {
-        results["timing"]["time"].append(static_cast<Json::Value::Int64>(t));
+        int64_t sum = 0;
+        for (int64_t t : mTiming)
+        {
+            results["timing"]["time"].append(static_cast<Json::Value::Int64>(t));
+            sum += t;
+        }
+
+        double timeInSeconds = (double)sum / 1000000.0;
+        results["timing"]["samples_per_second"] = (double)mTiming.size() / timeInSeconds;
     }
     for (unsigned i = 0; i < mCustomHeaders.size(); i++)
     {
