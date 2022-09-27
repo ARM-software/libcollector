@@ -637,3 +637,14 @@ bool Collection::writeCSV(const std::string& filename)
     }
     return (fclose(fp) == 0);
 }
+
+
+bool Collection::writeJSON(const std::string& filename)
+{
+    FILE *fp = fopen(filename.c_str(), "w");
+    Json::StyledWriter writer;
+    Json::Value result_json = results();
+    fprintf(fp, "%s", writer.write(result_json).c_str());
+
+    return (fclose(fp) == 0);
+}

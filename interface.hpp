@@ -14,6 +14,7 @@
 
 #include "json/value.h"
 #include "json/reader.h"
+#include "json/writer.h"
 
 #ifndef DBG_LOG
 #ifdef ANDROID
@@ -228,6 +229,9 @@ public:
 
     /// Write out the data to file as CSV in the MTV format (data in columns)
     bool writeCSV_MTV(const std::string& filename);
+
+    /// Write out the data to a file as json
+    bool writeJSON(const std::string& filename);
 
     /// Clear any old results and start collecting data. If the optional customHeaders
     /// vector is passed in, this defines custom data that must be passed in through
