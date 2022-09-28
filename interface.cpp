@@ -188,9 +188,30 @@ SysfsCollector::~SysfsCollector()
 
 // ---------- COLLECTION ----------
 
+Collection::Collection(const std::string& config_str)
+{
+
+    Json::Value jsonConfig;
+    Json::Reader reader;
+    bool success = reader.parse(config_str.c_str(), jsonConfig);
+    if (success)
+    {
+        std::string emsg = reader.getFormattedErrorMessages();
+        DBG_LOG("Failed to parse config json string in constructor: %s\n", emsg.c_str());
+    }
+
+    mConfig = jsonConfig;
+    init_from_json(jsonConfig);
+}
+
 Collection::Collection(const Json::Value& config) : mConfig(config)
 {
-#ifndef __APPLE__
+    init_from_json(config);
+}
+
+void Collection::init_from_json(const Json::Value& config)
+{
+    #ifndef __APPLE__
     mCollectors.push_back(new PerfCollector(config, "perf"));
     mCollectors.push_back(new SysfsCollector(config, "battery_temperature",
         { "/sys/class/power_supply/battery/temp",
@@ -462,14 +483,27 @@ Json::Value Collection::results()
     results["timing"] = v;
     if (mTimingSummarized.size() > 0)
     {
+        int64_t sum = 0;
         for (int64_t t : mTimingSummarized)
         {
             results["timing"]["time"].append(static_cast<Json::Value::Int64>(t));
+            sum += t;
         }
+
+        double timeInSeconds = (double)sum / 1000000.0;
+        results["timing"]["samples_per_second"] = (double)mTimingSummarized.size() / timeInSeconds;
     }
-    else for (int64_t t : mTiming)
+    else
     {
-        results["timing"]["time"].append(static_cast<Json::Value::Int64>(t));
+        int64_t sum = 0;
+        for (int64_t t : mTiming)
+        {
+            results["timing"]["time"].append(static_cast<Json::Value::Int64>(t));
+            sum += t;
+        }
+
+        double timeInSeconds = (double)sum / 1000000.0;
+        results["timing"]["samples_per_second"] = (double)mTiming.size() / timeInSeconds;
     }
     for (unsigned i = 0; i < mCustomHeaders.size(); i++)
     {
@@ -601,5 +635,16 @@ bool Collection::writeCSV(const std::string& filename)
         }
         fprintf(fp, "\n");
     }
+    return (fclose(fp) == 0);
+}
+
+
+bool Collection::writeJSON(const std::string& filename)
+{
+    FILE *fp = fopen(filename.c_str(), "w");
+    Json::StyledWriter writer;
+    Json::Value result_json = results();
+    fprintf(fp, "%s", writer.write(result_json).c_str());
+
     return (fclose(fp) == 0);
 }
