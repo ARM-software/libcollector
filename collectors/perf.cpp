@@ -517,7 +517,7 @@ static void writeCSV(int tid, std::string name, CollectorValueResults &results)
     {
         unsigned int number = 0;
         std::string item;
-        for (const auto pair : results)
+        for (const auto& pair : results)
         {
             item += pair.first + ",";
             number = pair.second.size();
@@ -528,7 +528,7 @@ static void writeCSV(int tid, std::string name, CollectorValueResults &results)
         {
             std::stringstream css;
             std::string value;
-            for (const auto pair : results)
+            for (const auto& pair : results)
             {
                 css << pair.second.at(i).i64 << ",";
             }
