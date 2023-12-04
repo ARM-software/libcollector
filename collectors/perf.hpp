@@ -48,6 +48,7 @@ struct event {
     bool exc_kernel;  // default is false
     enum hw_cnt_length len; // default is 32bit pmu counter
     bool booker_ci;  // default is false
+    bool cspmu;
     std::string device; // default is ""
 };
 
@@ -110,6 +111,7 @@ private:
     std::vector<struct event> mEvents;
     std::vector<struct event> mBookerEvents;
     std::map<int, std::vector<struct event>> mMultiPMUEvents;
+    std::map<int, std::vector<struct event>> mCSPMUEvents;
 
     struct perf_thread
     {
@@ -167,4 +169,5 @@ private:
     std::vector<struct perf_thread> mBgThreads;
     std::vector<struct perf_thread> mBookerThread;
     std::vector<struct perf_thread> mMultiPMUThreads;
+    std::vector<struct perf_thread> mCSPMUThreads;
 };

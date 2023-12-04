@@ -112,6 +112,7 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
             e.exc_kernel = item.get("excludeKernel", false).asBool();
             e.len = (item.get("counterLen64bit", 0).asInt() == 0) ? hw_cnt_length::b32 : hw_cnt_length::b64;
             e.booker_ci = item.get("booker-ci", 0).asInt();
+            e.cspmu = item.get("CSPMU", 0).asInt();
             e.device = item.get("device", "").asString();
 
             if (e.booker_ci)
@@ -151,13 +152,28 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
                 {
                     DBG_LOG("Read event type %s from %s\n", type_string.c_str(), event_type_filename.c_str());
                     e.type=atoi(type_string.c_str());
-                    if (mMultiPMUEvents.count(e.type))
+                    if (e.cspmu)
                     {
-                        mMultiPMUEvents[e.type].push_back(e);
+                        e.name = e.device+"_"+e.name;
+                        if (mCSPMUEvents.count(e.type))
+                        {
+                            mCSPMUEvents[e.type].push_back(e);
+                        }
+                        else
+                        {
+                            mCSPMUEvents.emplace(e.type,std::vector<event>{e});
+                        }
                     }
                     else
                     {
-                        mMultiPMUEvents.emplace(e.type,std::vector<event>{e});
+                        if (mMultiPMUEvents.count(e.type))
+                        {
+                            mMultiPMUEvents[e.type].push_back(e);
+                        }
+                        else
+                        {
+                            mMultiPMUEvents.emplace(e.type,std::vector<event>{e});
+                        }
                     }
                 }
                 else
@@ -243,6 +259,13 @@ bool PerfCollector::init()
         }
     }
 
+    int n = 0;
+    for (auto& iter : mCSPMUEvents)
+    {
+        mCSPMUThreads[n].eventCtx.init(iter.second, -1, 0);
+        n++;
+    }
+
     for (perf_thread& t : mBookerThread)
         t.eventCtx.init(mBookerEvents, -1, 0);
 
@@ -275,14 +298,22 @@ bool PerfCollector::deinit()
         t.clear();
     }
 
+    for (perf_thread& t : mCSPMUThreads)
+    {
+        t.eventCtx.deinit();
+        t.clear();
+    }
+
     mEvents.clear();
     mBookerEvents.clear();
     for (auto& et : mMultiPMUEvents) et.second.clear();
+    for (auto& et : mCSPMUEvents) et.second.clear();
 
     mReplayThreads.clear();
     mBgThreads.clear();
     mMultiPMUThreads.clear();
     mBookerThread.clear();
+    mCSPMUThreads.clear();
 
     clear();
 
@@ -307,6 +338,10 @@ bool PerfCollector::start()
             return false;
 
     for (perf_thread& t: mBookerThread)
+        if ( !t.eventCtx.start() )
+            return false;
+
+    for (perf_thread& t: mCSPMUThreads)
         if ( !t.eventCtx.start() )
             return false;
 
@@ -349,6 +384,11 @@ bool PerfCollector::stop()
         t.eventCtx.stop();
     }
 
+    for (perf_thread& t : mCSPMUThreads)
+    {
+        t.eventCtx.stop();
+    }
+
     mCollecting = false;
 
     return true;
@@ -384,6 +424,12 @@ bool PerfCollector::collect(int64_t now)
         t.update_data(snap);
     }
 
+    for (perf_thread& t : mCSPMUThreads)
+    {
+        snap = t.eventCtx.collect(now);
+        t.update_data(snap);
+    }
+
     return true;
 }
 
@@ -405,6 +451,10 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
             mMultiPMUThreads[i].postprocess(replayValue);
             i++;
         }
+    }
+    for (unsigned int n =0;n<mCSPMUEvents.size();n++)
+    {
+        mCSPMUThreads[n].postprocess(replayValue);
     }
     for (perf_thread& t : mBookerThread)
     {
@@ -458,6 +508,11 @@ void PerfCollector::summarize()
     }
 
     for (perf_thread& t : mBookerThread)
+    {
+        t.summarize();
+    }
+
+    for (perf_thread& t : mCSPMUThreads)
     {
         t.summarize();
     }
@@ -586,6 +641,11 @@ void PerfCollector::create_perf_thread()
         }
     }
     closedir(dirp);
+
+    for (unsigned int i =0; i<mCSPMUEvents.size();i++)
+    {
+        mCSPMUThreads.emplace_back(getpid(), current_pName);
+    }
 
     if (mBookerEvents.size() > 0)
     {
