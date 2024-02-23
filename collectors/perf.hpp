@@ -112,6 +112,7 @@ private:
     std::vector<struct event> mBookerEvents;
     std::map<int, std::vector<struct event>> mMultiPMUEvents;
     std::map<int, std::vector<struct event>> mCSPMUEvents;
+    std::map<std::string, std::vector<struct timespec>> mClocks; // device_name -> clock_vector
 
     struct perf_thread
     {
@@ -163,6 +164,7 @@ private:
         const std::string name;
         event_context eventCtx;
         CollectorValueResults mResultsPerThread;
+        std::string device_name;
     };
 
     std::vector<struct perf_thread> mReplayThreads;
