@@ -314,6 +314,7 @@ bool PerfCollector::deinit()
     mMultiPMUThreads.clear();
     mBookerThread.clear();
     mCSPMUThreads.clear();
+    mClocks.clear();
 
     clear();
 
@@ -342,9 +343,11 @@ bool PerfCollector::start()
             return false;
 
     for (perf_thread& t: mCSPMUThreads)
-        if ( !t.eventCtx.start() )
-            return false;
-
+        {
+            if ( !t.eventCtx.start() ) 
+                return false;
+            mClocks.emplace(t.device_name, std::vector<timespec>{});
+        }
     mCollecting = true;
     return true;
 }
@@ -428,6 +431,10 @@ bool PerfCollector::collect(int64_t now)
     {
         snap = t.eventCtx.collect(now);
         t.update_data(snap);
+        // save CLOCK_MONOTONIC_RAW when collect
+        struct timespec tmp_clock = {0, 0};
+        clock_gettime(CLOCK_MONOTONIC_RAW, &tmp_clock);
+        mClocks[t.device_name].push_back(tmp_clock);
     }
 
     return true;
@@ -452,9 +459,22 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
             i++;
         }
     }
-    for (unsigned int n =0;n<mCSPMUEvents.size();n++)
+    for (perf_thread& t : mCSPMUThreads)
     {
-        mCSPMUThreads[n].postprocess(replayValue);
+        t.postprocess(replayValue);
+        std::string sec_name = t.device_name + "_sec";
+        std::string nsec_name = t.device_name + "_nsec";
+        std::vector<int64_t> clocks_sec;
+        std::vector<int64_t> clocks_nsec;
+        Json::Value clockValue;
+        for (auto iter : mClocks[t.device_name])
+        {
+            clocks_sec.push_back(iter.tv_sec);
+            clocks_nsec.push_back(iter.tv_nsec);
+            clockValue[sec_name.c_str()].append(iter.tv_sec);
+            clockValue[nsec_name.c_str()].append(iter.tv_nsec);
+        }
+        mCustomResult["thread_data"].append(clockValue);
     }
     for (perf_thread& t : mBookerThread)
     {
@@ -641,10 +661,13 @@ void PerfCollector::create_perf_thread()
         }
     }
     closedir(dirp);
-
-    for (unsigned int i =0; i<mCSPMUEvents.size();i++)
+    
+    int i=0;
+    for (auto pair : mCSPMUEvents)
     {
         mCSPMUThreads.emplace_back(getpid(), current_pName);
+        mCSPMUThreads[i].device_name = pair.second[0].device;
+        i++;
     }
 
     if (mBookerEvents.size() > 0)
