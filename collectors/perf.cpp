@@ -471,8 +471,8 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
         {
             clocks_sec.push_back(iter.tv_sec);
             clocks_nsec.push_back(iter.tv_nsec);
-            clockValue[sec_name.c_str()].append(iter.tv_sec);
-            clockValue[nsec_name.c_str()].append(iter.tv_nsec);
+            clockValue[sec_name.c_str()].append((Json::Value::Int64)iter.tv_sec);
+            clockValue[nsec_name.c_str()].append((Json::Value::Int64)iter.tv_nsec);
         }
         mCustomResult["thread_data"].append(clockValue);
     }
