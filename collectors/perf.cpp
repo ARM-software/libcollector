@@ -19,7 +19,7 @@
 #include <sstream>
 #include <fstream>
 
-std::map<int, std::vector<struct event>> EVENTS = {
+static std::map<int, std::vector<struct event>> EVENTS = {
 {0, { {"CPUInstructionRetired", PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, false, false, hw_cnt_length::b32, false},
       {"CPUCacheReferences", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, false, false, hw_cnt_length::b32, false},
       {"CPUCacheMisses", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, false, false, hw_cnt_length::b32, false},
@@ -89,7 +89,7 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
     if ((0 <= mSet) && (mSet <= 3))
     {
         DBG_LOG("Using reserved CPU counter set number %d, this will fail on non-ARM CPU's except set 0.\n", mSet);
-        for (struct event& e : EVENTS[mSet])
+        for (const struct event& e : EVENTS[mSet])
             mEvents.push_back(e);
     }
     else if (mConfig.isMember("event"))
@@ -327,24 +327,24 @@ bool PerfCollector::start()
         return true;
 
     for (perf_thread& t : mReplayThreads)
-        if ( !t.eventCtx.start() )
+        if (!t.eventCtx.start())
             return false;
 
     for (perf_thread& t : mBgThreads)
-        if ( !t.eventCtx.start() )
+        if (!t.eventCtx.start())
             return false;
 
     for (perf_thread& t : mMultiPMUThreads)
-        if ( !t.eventCtx.start() )
+        if (!t.eventCtx.start())
             return false;
 
     for (perf_thread& t: mBookerThread)
-        if ( !t.eventCtx.start() )
+        if (!t.eventCtx.start())
             return false;
 
     for (perf_thread& t: mCSPMUThreads)
         {
-            if ( !t.eventCtx.start() ) 
+            if (!t.eventCtx.start())
                 return false;
             mClocks.emplace(t.device_name, std::vector<timespec>{});
         }
@@ -600,8 +600,8 @@ struct snapshot event_context::collect(int64_t now)
 {
     struct snapshot snap;
 
-    if (read(group, &snap, sizeof(snap)) == -1)    perror("read");
-    if (ioctl(group, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) == -1)    perror("ioctl PERF_EVENT_IOC_RESET");
+    if (read(group, &snap, sizeof(snap)) == -1) perror("read");
+    if (ioctl(group, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) == -1) perror("ioctl PERF_EVENT_IOC_RESET");
     return snap;
 }
 
@@ -628,32 +628,32 @@ void PerfCollector::create_perf_thread()
     std::string current_pName = getThreadName(0);
 
     DIR *dirp = NULL;
-    if ( (dirp = opendir("/proc/self/task")) == NULL)
+    if ((dirp = opendir("/proc/self/task")) == NULL)
         return;
 
     struct dirent *ent = NULL;
-    while ( (ent = readdir(dirp)) != NULL)
+    while ((ent = readdir(dirp)) != NULL)
     {
-        if ( isdigit(ent->d_name[0]) )
+        if (isdigit(ent->d_name[0]))
         {
-            int tid =_stol( std::string(ent->d_name) );
+            int tid =_stol(std::string(ent->d_name));
             std::string thread_name = getThreadName(tid);
 
 #ifdef ANDROID
             if (!strncmp(thread_name.c_str(), "GLThread", 9) || !strncmp(thread_name.c_str(), "Thread-", 7))
             {
                 mReplayThreads.emplace_back(tid, thread_name);
-                for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);           
+                for (unsigned int i = 0; i < mMultiPMUEvents.size(); i++) mMultiPMUThreads.emplace_back(tid, thread_name);
             }
 #else
-            if ( !strcmp(thread_name.c_str(), current_pName.c_str()) )
+            if (!strcmp(thread_name.c_str(), current_pName.c_str()))
             {
                 mReplayThreads.emplace_back(tid, thread_name);
                 //each group of MultiPMUEvents have a thread
                 for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
             }
 #endif
-            if ( mAllThread && !strncmp(thread_name.c_str(), "mali-", 5) )
+            if (mAllThread && !strncmp(thread_name.c_str(), "mali-", 5))
             {
                 mBgThreads.emplace_back(tid, thread_name);
                 for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
@@ -661,7 +661,7 @@ void PerfCollector::create_perf_thread()
         }
     }
     closedir(dirp);
-    
+
     int i=0;
     for (auto pair : mCSPMUEvents)
     {
@@ -676,7 +676,7 @@ void PerfCollector::create_perf_thread()
     }
 }
 
-static void writeCSV(int tid, std::string name, CollectorValueResults &results)
+static void writeCSV(int tid, std::string name, const CollectorValueResults &results)
 {
     std::stringstream ss;
 #ifdef ANDROID
@@ -719,9 +719,9 @@ static void writeCSV(int tid, std::string name, CollectorValueResults &results)
 
 void PerfCollector::saveResultsFile()
 {
-    for (perf_thread& t : mReplayThreads)
+    for (const perf_thread& t : mReplayThreads)
         writeCSV(t.tid, t.name, t.mResultsPerThread);
 
-    for (perf_thread& t : mBgThreads)
+    for (const perf_thread& t : mBgThreads)
         writeCSV(t.tid, t.name, t.mResultsPerThread);
 }

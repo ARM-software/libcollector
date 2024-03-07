@@ -18,6 +18,11 @@
 #include "interface.hpp"
 #include "collectors/collector_utility.hpp"
 
+// VK_LAYER_EXPORT got removed from vulkan/vk_layer.h
+#ifndef VK_LAYER_EXPORT
+#define VK_LAYER_EXPORT
+#endif
+
 struct InstanceDispatchTable;
 struct vkCollectorContext;
 
