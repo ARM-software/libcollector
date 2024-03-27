@@ -638,21 +638,12 @@ void PerfCollector::create_perf_thread()
         {
             int tid =_stol(std::string(ent->d_name));
             std::string thread_name = getThreadName(tid);
-
-#ifdef ANDROID
-            if (!strncmp(thread_name.c_str(), "GLThread", 9) || !strncmp(thread_name.c_str(), "Thread-", 7))
-            {
-                mReplayThreads.emplace_back(tid, thread_name);
-                for (unsigned int i = 0; i < mMultiPMUEvents.size(); i++) mMultiPMUThreads.emplace_back(tid, thread_name);
-            }
-#else
-            if (!strcmp(thread_name.c_str(), current_pName.c_str()))
+            if (!strncmp(thread_name.c_str(), "patrace-", 8))
             {
                 mReplayThreads.emplace_back(tid, thread_name);
                 //each group of MultiPMUEvents have a thread
                 for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
             }
-#endif
             if (mAllThread && !strncmp(thread_name.c_str(), "mali-", 5))
             {
                 mBgThreads.emplace_back(tid, thread_name);
