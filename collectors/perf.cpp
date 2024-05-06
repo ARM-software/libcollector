@@ -452,15 +452,22 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
     int i=0;
     for (perf_thread& t : mReplayThreads)
     {
+        Json::Value perf_threadValue;
+        perf_threadValue["CCthread"] = t.name.c_str();
+        t.postprocess(perf_threadValue);
         t.postprocess(replayValue);
         for (unsigned int j =0; j<mMultiPMUEvents.size();j++)
         {
             mMultiPMUThreads[i].postprocess(replayValue);
             i++;
         }
+        mCustomResult["thread_data"].append(perf_threadValue);
     }
     for (perf_thread& t : mCSPMUThreads)
     {
+        Json::Value perf_threadValue;
+        perf_threadValue["CCthread"] = t.name.c_str();
+        t.postprocess(perf_threadValue);
         t.postprocess(replayValue);
         std::string sec_name = t.device_name + "_sec";
         std::string nsec_name = t.device_name + "_nsec";
@@ -474,11 +481,16 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
             clockValue[sec_name.c_str()].append((Json::Value::Int64)iter.tv_sec);
             clockValue[nsec_name.c_str()].append((Json::Value::Int64)iter.tv_nsec);
         }
+        mCustomResult["thread_data"].append(perf_threadValue);
         mCustomResult["thread_data"].append(clockValue);
     }
     for (perf_thread& t : mBookerThread)
     {
+        Json::Value perf_threadValue;
+        perf_threadValue["CCthread"] = t.name.c_str();
+        t.postprocess(perf_threadValue);
         t.postprocess(replayValue);
+        mCustomResult["thread_data"].append(perf_threadValue);
     }
     mCustomResult["thread_data"].append(replayValue);
 
@@ -492,6 +504,9 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
 
         for (perf_thread& t : mBgThreads)
         {
+            Json::Value perf_threadValue;
+            perf_threadValue["CCthread"] = t.name.c_str();
+            t.postprocess(perf_threadValue);
             t.postprocess(bgValue);
             t.postprocess(allValue);
             for (unsigned int j =0; j<mMultiPMUEvents.size();j++)
@@ -500,7 +515,9 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
                 mMultiPMUThreads[i].postprocess(allValue);
                 i++;
             }
+            mCustomResult["thread_data"].append(perf_threadValue);
         }
+        
         mCustomResult["thread_data"].append(bgValue);
         mCustomResult["thread_data"].append(allValue);
     }
@@ -645,6 +662,11 @@ void PerfCollector::create_perf_thread()
                 for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
             }
             if (mAllThread && !strncmp(thread_name.c_str(), "mali-", 5))
+            {
+                mBgThreads.emplace_back(tid, thread_name);
+                for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
+            }
+            if (mAllThread && !strncmp(thread_name.c_str(), "ANGLE-", 6))
             {
                 mBgThreads.emplace_back(tid, thread_name);
                 for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
