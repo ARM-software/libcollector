@@ -82,6 +82,13 @@ static inline uint64_t makeup_booker_ci_config(int nodetype, int eventid, int by
 PerfCollector::PerfCollector(const Json::Value& config, const std::string& name) : Collector(config, name)
 {
     struct event leader = {"CPUCycleCount", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES};
+
+    if (mConfig.isMember("event"))
+    {   // inherit counter option for group lead
+        Json::Value item_leader = mConfig["event"][0];
+        leader.inherited = item_leader.get("inherit",1).asInt();
+    }
+    
     mEvents.push_back(leader);
 
     mSet = mConfig.get("set", -1).asInt();
@@ -92,10 +99,10 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
         for (const struct event& e : EVENTS[mSet])
             mEvents.push_back(e);
     }
-    else if (mConfig.isMember("event"))
+    else if (mConfig.isMember("event_customer"))
     {
         DBG_LOG("Using customized CPU counter event, this will fail on non-ARM CPU's\n");
-        Json::Value eventArray = mConfig["event"];
+        Json::Value eventArray = mConfig["event_customer"];
         for (Json::ArrayIndex i = 0; i < eventArray.size(); i++)
         {
             Json::Value item = eventArray[i];
@@ -114,6 +121,7 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
             e.booker_ci = item.get("booker-ci", 0).asInt();
             e.cspmu = item.get("CSPMU", 0).asInt();
             e.device = item.get("device", "").asString();
+            e.inherited = item.get("inherit",1).asInt();
 
             if (e.booker_ci)
             {   // booker-ci counter
@@ -213,7 +221,7 @@ static int add_event(const struct event &e, int tid, int cpu, int group = -1)
     pe.config = e.config;
     pe.config1 = (e.len == hw_cnt_length::b32) ? 0 : 1;
     pe.disabled = 1;
-    pe.inherit = 1;
+    pe.inherit = e.inherited;
     pe.exclude_user = e.exc_user;
     pe.exclude_kernel = e.exc_kernel;
     pe.exclude_hv = 0;
