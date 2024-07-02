@@ -50,6 +50,7 @@ struct event {
     bool booker_ci;  // default is false
     bool cspmu;
     std::string device; // default is ""
+    uint32_t inherited; 
 };
 
 class event_context
@@ -107,6 +108,7 @@ private:
 
 private:
     int mSet = -1;
+    int mInherit = 1;
     bool mAllThread = true;
     std::vector<struct event> mEvents;
     std::vector<struct event> mBookerEvents;
