@@ -50,7 +50,7 @@ struct event {
     bool booker_ci;  // default is false
     bool cspmu;
     std::string device; // default is ""
-    uint32_t inherited; 
+    uint32_t inherited; // default is 1
 };
 
 class event_context
