@@ -648,6 +648,18 @@ void PerfCollector::create_perf_thread()
 {
     std::string current_pName = getThreadName(0);
 
+    if(!mCSPMUEvents.empty())
+    {
+        int i=0;
+        for (auto pair : mCSPMUEvents)
+        {
+            mCSPMUThreads.emplace_back(getpid(), current_pName);
+            mCSPMUThreads[i].device_name = pair.second[0].device;
+            i++;
+        }
+        return;
+    }
+
     DIR *dirp = NULL;
     if ((dirp = opendir("/proc/self/task")) == NULL)
         return;
@@ -678,14 +690,6 @@ void PerfCollector::create_perf_thread()
         }
     }
     closedir(dirp);
-
-    int i=0;
-    for (auto pair : mCSPMUEvents)
-    {
-        mCSPMUThreads.emplace_back(getpid(), current_pName);
-        mCSPMUThreads[i].device_name = pair.second[0].device;
-        i++;
-    }
 
     if (mBookerEvents.size() > 0)
     {
