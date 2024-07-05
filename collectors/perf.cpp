@@ -84,8 +84,8 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
     struct event leader = {"CPUCycleCount", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES};
 
     mSet = mConfig.get("set", -1).asInt();
-    mInherit = mConfig.get("inherit", 1).asInt();    
-    
+    mInherit = mConfig.get("inherit", 1).asInt();
+
     leader.inherited = mInherit;
     mEvents.push_back(leader);
 
@@ -145,7 +145,7 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name)
                 }
             }
             else if(e.device!="")
-            {//for d9000, CPU cores on different PMU 
+            {//for d9000, CPU cores on different PMU
                 e.config = item.get("config", 0).asUInt64();
                 auto type_string = e.device;
 
@@ -405,7 +405,6 @@ bool PerfCollector::collect(int64_t now)
 {
     if (!mCollecting)
         return false;
-
     struct snapshot snap;
     for (perf_thread& t : mReplayThreads)
     {
@@ -442,6 +441,63 @@ bool PerfCollector::collect(int64_t now)
     }
 
     return true;
+}
+
+bool PerfCollector::collect_scope_start(int64_t now, uint16_t func_id) {
+    if (!mCollecting) return false;
+    struct snapshot snap;
+    for (perf_thread& t : mReplayThreads)
+    {
+        t.eventCtx.collect_scope(now, func_id, false);
+    }
+    for (perf_thread& t : mBgThreads)
+    {
+        t.eventCtx.collect_scope(now, func_id, false);
+    }
+    for (perf_thread& t : mMultiPMUThreads)
+    {
+        t.eventCtx.collect_scope(now, func_id, false);
+    }
+    for (perf_thread& t : mBookerThread)
+    {
+        t.eventCtx.collect_scope(now, func_id, false);
+    }
+    for (perf_thread& t : mCSPMUThreads)
+    {
+        t.eventCtx.collect_scope(now, func_id, false);
+    }
+    return true;
+}
+
+bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id) {
+    if (!mCollecting) return false;
+    struct snapshot snap_start, snap_stop;
+    for (perf_thread &t : mReplayThreads) {
+        snap_start = t.eventCtx.last_snap;
+        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+    }
+    for (perf_thread &t : mBgThreads) {
+        snap_start = t.eventCtx.last_snap;
+        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+    }
+    for (perf_thread &t : mMultiPMUThreads) {
+        snap_start = t.eventCtx.last_snap;
+        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+    }
+    for (perf_thread &t : mBookerThread) {
+        snap_start = t.eventCtx.last_snap;
+        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+    }
+    for (perf_thread &t : mCSPMUThreads) {
+        snap_start = t.eventCtx.last_snap;
+        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+    }
+    return false;
 }
 
 bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
@@ -521,7 +577,7 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
             }
             mCustomResult["thread_data"].append(perf_threadValue);
         }
-        
+
         mCustomResult["thread_data"].append(bgValue);
         mCustomResult["thread_data"].append(allValue);
     }
@@ -617,12 +673,28 @@ bool event_context::stop()
     return true;
 }
 
+// Collect and reset the perf counters to 0.
 struct snapshot event_context::collect(int64_t now)
 {
     struct snapshot snap;
 
     if (read(group, &snap, sizeof(snap)) == -1) perror("read");
     if (ioctl(group, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) == -1) perror("ioctl PERF_EVENT_IOC_RESET");
+    return snap;
+}
+
+struct snapshot event_context::collect_scope(int64_t now, uint16_t func_id, bool stopping) {
+    if (stopping && last_snap_func_id != func_id) {
+        DBG_LOG("Error: Could not find the corresponding collect_scope_start call for func_id %ud.\n", func_id);
+    }
+    struct snapshot snap;
+    if (read(group, &snap, sizeof(snap)) == -1) perror("read");
+    if (stopping) {
+        last_snap_func_id = -1;
+    } else {
+        last_snap_func_id = func_id;
+        last_snap = snap;
+    }
     return snap;
 }
 

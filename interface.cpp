@@ -450,6 +450,28 @@ void Collection::collect(std::vector<int64_t> custom)
     }
 }
 
+void Collection::collect_scope_start(uint16_t func_id) {
+    const int64_t now = getTime();
+    for (Collector* c : mRunning)
+    {
+        if (!c->isThreaded())
+        {
+            c->collect_scope_start(now, func_id);
+        }
+    }
+}
+
+void Collection::collect_scope_stop(uint16_t func_id) {
+    const int64_t now = getTime();
+    for (Collector* c : mRunning)
+    {
+        if (!c->isThreaded())
+        {
+            c->collect_scope_stop(now, func_id);
+        }
+    }
+}
+
 Json::Value Collection::results()
 {
     Json::Value results;

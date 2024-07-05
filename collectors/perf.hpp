@@ -59,6 +59,7 @@ public:
     event_context()
     {
         group = -1;
+        last_snap_func_id = -1;
     }
 
     ~event_context() {}
@@ -66,6 +67,13 @@ public:
     bool init(std::vector<struct event> &events, int tid, int cpu);
     bool start();
     struct snapshot collect(int64_t now);
+
+    struct snapshot collect_scope(int64_t now, uint16_t func_id, bool stopping);
+
+    // If not -1, then we are in the middle of collect_scope_start/stop.
+    uint16_t last_snap_func_id;
+    struct snapshot last_snap;
+
     bool stop();
     bool deinit();
 
@@ -73,6 +81,14 @@ public:
     {
         for (unsigned int i = 0; i < mCounters.size(); i++)
             result[mCounters[i].name].push_back(snap.values[i]);
+    }
+
+    inline void update_data_perapi(uint16_t func_id, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
+    {
+        for (unsigned int i = 0; i < mCounters.size(); i++) {
+            std::string name = mCounters[i].name + ":" + std::to_string(func_id);
+            result[name].push_back(snap_end.values[i] - snap_start.values[i]);
+        }
     }
 
 private:
@@ -84,6 +100,7 @@ private:
 
     int group;
     std::vector<struct counter> mCounters;
+
 };
 
 class PerfCollector : public Collector
@@ -102,7 +119,14 @@ public:
     virtual bool postprocess(const std::vector<int64_t>& timing) override;
     virtual void summarize() override;
 
-private:
+    /// @brief Collector functions for perapi perf instrumentations.
+    /// @param now Current time in milliseconds.
+    /// @param func_id The function id.
+    /// @return
+    virtual bool collect_scope_start(int64_t now, uint16_t func_id);
+    virtual bool collect_scope_stop(int64_t now, uint16_t func_id);
+
+  private:
     void create_perf_thread();
     void saveResultsFile();
 
@@ -123,6 +147,11 @@ private:
         void update_data(struct snapshot& snap)
         {
             eventCtx.update_data(snap, mResultsPerThread);
+        }
+
+        void update_data_perapi(uint16_t func_id, struct snapshot& snap_start, struct snapshot& snap_end)
+        {
+            eventCtx.update_data_perapi(func_id, snap_start, snap_end, mResultsPerThread);
         }
 
         void clear()
