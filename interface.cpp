@@ -450,26 +450,36 @@ void Collection::collect(std::vector<int64_t> custom)
     }
 }
 
-void Collection::collect_scope_start(uint16_t func_id) {
+void Collection::collect_scope_start(uint16_t label) {
     const int64_t now = getTime();
+    mScopeStartTime = now;
     for (Collector* c : mRunning)
     {
         if (!c->isThreaded())
         {
-            c->collect_scope_start(now, func_id);
+            c->collect_scope_start(now, label);
         }
     }
+    mScopeStarted = true;
 }
 
-void Collection::collect_scope_stop(uint16_t func_id) {
+void Collection::collect_scope_stop(uint16_t label) {
+    // A collect_scope_start and collect_scope_end pair is considered as one sample.
+    // Timing is calculated from the start of the scope to the end of the scope.
+    if (!mScopeStarted) {
+        DBG_LOG("WARNING: collect_scope_stop called without a corresponding collect_scope_start.\n");
+        return;
+    }
     const int64_t now = getTime();
+    mTiming.push_back(now - mScopeStartTime);
     for (Collector* c : mRunning)
     {
         if (!c->isThreaded())
         {
-            c->collect_scope_stop(now, func_id);
+            c->collect_scope_stop(now, label);
         }
     }
+    mScopeStarted = false;
 }
 
 Json::Value Collection::results()

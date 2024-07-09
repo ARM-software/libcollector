@@ -475,27 +475,27 @@ bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id) {
     for (perf_thread &t : mReplayThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
     }
     for (perf_thread &t : mBgThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
     }
     for (perf_thread &t : mMultiPMUThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
     }
     for (perf_thread &t : mBookerThread) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
     }
     for (perf_thread &t : mCSPMUThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_perapi(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
     }
     return false;
 }

@@ -254,13 +254,13 @@ public:
     /// result value.
     void collect(std::vector<int64_t> custom = std::vector<int64_t>());
 
-    /// Sample periodical data for per function instrumentation. Call start before the actual code
-    /// to be tested. Currently only used for perf collector.
-    void collect_scope_start(uint16_t func_id);
+    /// Sample periodical data for per API instrumentation. Call this method before the payload
+    /// execution. Currently only used for perf collector.
+    void collect_scope_start(uint16_t label);
 
-    /// Sample periodical data for per function instrumentation. Call after before the actual code
-    /// to be tested. Currently only used for perf collector.
-    void collect_scope_stop(uint16_t func_id);
+    /// Sample periodical data for per API instrumentation. Call this method after the payload
+    /// execution. Currently only used for perf collector.
+    void collect_scope_stop(uint16_t label);
 
     /// Get the results as JSON
     Json::Value results();
@@ -282,5 +282,7 @@ private:
     std::vector<std::string> mCustomHeaders;
     int64_t mStartTime = 0;
     int64_t mPreviousTime = 0;
+    bool mScopeStarted = false;
+    int64_t mScopeStartTime = 0;
     bool mDebug = false;
 };

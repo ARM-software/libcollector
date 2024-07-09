@@ -83,7 +83,7 @@ public:
             result[mCounters[i].name].push_back(snap.values[i]);
     }
 
-    inline void update_data_perapi(uint16_t func_id, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
+    inline void update_data_scope(uint16_t func_id, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
     {
         for (unsigned int i = 0; i < mCounters.size(); i++) {
             std::string name = mCounters[i].name + ":" + std::to_string(func_id);
@@ -119,10 +119,7 @@ public:
     virtual bool postprocess(const std::vector<int64_t>& timing) override;
     virtual void summarize() override;
 
-    /// @brief Collector functions for perapi perf instrumentations.
-    /// @param now Current time in milliseconds.
-    /// @param func_id The function id.
-    /// @return
+    /// Collector functions for perapi perf instrumentations.
     virtual bool collect_scope_start(int64_t now, uint16_t func_id);
     virtual bool collect_scope_stop(int64_t now, uint16_t func_id);
 
@@ -149,9 +146,9 @@ private:
             eventCtx.update_data(snap, mResultsPerThread);
         }
 
-        void update_data_perapi(uint16_t func_id, struct snapshot& snap_start, struct snapshot& snap_end)
+        void update_data_scope(uint16_t func_id, struct snapshot& snap_start, struct snapshot& snap_end)
         {
-            eventCtx.update_data_perapi(func_id, snap_start, snap_end, mResultsPerThread);
+            eventCtx.update_data_scope(func_id, snap_start, snap_end, mResultsPerThread);
         }
 
         void clear()

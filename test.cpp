@@ -1,8 +1,9 @@
 #include "interface.hpp"
 
-#include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 
 #include "json/writer.h"
@@ -259,6 +260,81 @@ static void test7()
 	c.writeCSV("excel.csv");
 }
 
+void test8()
+{
+	printf("[test 8]: Testing collect_scope for the perf collector...\n");
+
+	// Specification:
+	// https://github.com/ARM-software/patrace/blob/master/patrace/doc/manual.md#generating-cpu-load-with-perf-collector
+	std::string collectorConfig = R"(
+	{
+		"perf": {
+			"set": 4,
+			"event": [
+				{
+					"name": "CPUCyclesUser",
+					"type": 4,
+					"config": 17,
+					"excludeKernel": true
+				},
+				{
+					"name": "CPUCyclesKernel",
+					"type": 4,
+					"config": 17,
+					"excludeUser": true
+				},
+				{
+					"name": "CPUInstructionUser",
+					"type": 4,
+					"config": 8,
+					"excludeKernel": true
+				},
+				{
+					"name": "CPUInstructionKernel",
+					"type": 4,
+					"config": 8,
+					"excludeUser": true
+				}
+			],
+		}
+	})";
+	Json::Value config;
+	std::stringstream(collectorConfig) >> config;
+	Collection c(config);
+	auto payload = [](int ops) {
+		int tmp = 1;
+		for (int i = 0; i < ops; i++) tmp *= rand();
+	};
+
+
+	char *cur_thread_name = (char *)malloc(16);
+	prctl(PR_GET_NAME, (unsigned long)cur_thread_name, 0, 0, 0);
+
+	std::string thread_name = "patrace-1";
+	prctl(PR_SET_NAME, (unsigned long)thread_name.c_str(), 0, 0, 0);
+	c.initialize();
+
+	c.start();
+	for (int i = 0; i < 10; i++) {
+		c.collect_scope_start(1);
+		payload(10);
+		c.collect_scope_stop(1);
+		c.collect_scope_start(2);
+		payload(100);
+		c.collect_scope_stop(2);
+	}
+	c.stop();
+
+	Json::Value results = c.results();
+	Json::StyledWriter writer;
+	std::string data = writer.write(results);
+	printf("Results:\n%s", data.c_str());
+	c.writeJSON("results_collect_scope.json");
+
+	// restore thread name
+	prctl(PR_SET_NAME, (unsigned long)cur_thread_name, 0, 0, 0);
+}
+
 int main()
 {
 	srandom(time(NULL));
@@ -270,6 +346,7 @@ int main()
 	test5();
 	test6();
 	test7(); // summarized results
+	test8(); // collect_scope
 	printf("ALL DONE!\n");
 	return 0;
 }
