@@ -465,13 +465,13 @@ void Collection::collect_scope_start(uint16_t label) {
 
 void Collection::collect_scope_stop(uint16_t label) {
     // A collect_scope_start and collect_scope_end pair is considered as one sample.
-    // Timing is calculated from the start of the scope to the end of the scope.
     if (!mScopeStarted) {
         DBG_LOG("WARNING: collect_scope_stop called without a corresponding collect_scope_start.\n");
         return;
     }
     const int64_t now = getTime();
-    mTiming.push_back(now - mScopeStartTime);
+    // Timing is ignored to avoid extreme large json outputs.
+    // mTiming.push_back(now - mScopeStartTime);
     for (Collector* c : mRunning)
     {
         if (!c->isThreaded())

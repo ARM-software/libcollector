@@ -475,27 +475,27 @@ bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id) {
     for (perf_thread &t : mReplayThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.update_data_scope(func_id, snap_start, snap_stop);
     }
     for (perf_thread &t : mBgThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.update_data_scope(func_id, snap_start, snap_stop);
     }
     for (perf_thread &t : mMultiPMUThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.update_data_scope(func_id, snap_start, snap_stop);
     }
     for (perf_thread &t : mBookerThread) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.update_data_scope(func_id, snap_start, snap_stop);
     }
     for (perf_thread &t : mCSPMUThreads) {
         snap_start = t.eventCtx.last_snap;
         snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.eventCtx.update_data_scope(func_id, snap_start, snap_stop, t.mResultsPerThread);
+        t.update_data_scope(func_id, snap_start, snap_stop);
     }
     return false;
 }
@@ -668,6 +668,30 @@ bool event_context::stop()
     {
         perror("ioctl PERF_EVENT_IOC_DISABLE");
         return false;
+    }
+
+    for (struct counter& c : mCounters)
+    {
+        if (c.scope_values.size() > 0 && mValueResults != nullptr)
+        {
+            std::string name = c.name + ":ScopeSum";
+            for (unsigned int i = 0; i < c.scope_values.size(); i++)
+            {
+                (*mValueResults)[name].push_back(c.scope_values[i]);
+            }
+        }
+    }
+
+    std::string name_num_func_calls = "CCthread:ScopeNumCalls";
+    for (unsigned int i = 0; i < scope_num_calls.size(); i++)
+    {
+        (*mValueResults)[name_num_func_calls].push_back(scope_num_calls[i]);
+    }
+
+    std::string name_num_calls = "CCthread:ScopeNumWithPerf";
+    for (unsigned int i = 0; i < scope_num_with_perf.size(); i++)
+    {
+        (*mValueResults)[name_num_calls].push_back(scope_num_with_perf[i]);
     }
 
     return true;

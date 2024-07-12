@@ -3,6 +3,9 @@
 #include "collector_utility.hpp"
 #include "interface.hpp"
 #include <map>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 enum hw_cnt_length
 {
@@ -83,11 +86,29 @@ public:
             result[mCounters[i].name].push_back(snap.values[i]);
     }
 
-    inline void update_data_scope(uint16_t func_id, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
+    inline void update_data_scope(uint16_t func_id, bool is_calling, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
     {
+        if (!mValueResults) mValueResults = &result;
+        long long diff_acc = 0;
         for (unsigned int i = 0; i < mCounters.size(); i++) {
-            std::string name = mCounters[i].name + ":" + std::to_string(func_id);
-            result[name].push_back(snap_end.values[i] - snap_start.values[i]);
+            long long diff = snap_end.values[i] - snap_start.values[i];
+            if (mCounters[i].scope_values.size() <= func_id) {
+                mCounters[i].scope_values.resize(std::min(func_id * 2 + 1, UINT16_MAX - 1), 0);
+            }
+            mCounters[i].scope_values[func_id] += diff;
+            diff_acc += diff;
+        }
+        if (diff_acc > 0 && is_calling) {
+            if (scope_num_calls.size() <= func_id) {
+                scope_num_calls.resize(std::min(func_id * 2 + 1, UINT16_MAX - 1), 0);
+            }
+            scope_num_calls[func_id]++;
+        }
+        if (diff_acc > 0) {
+            if (scope_num_with_perf.size() <= func_id) {
+                scope_num_with_perf.resize(std::min(func_id * 2 + 1, UINT16_MAX - 1), 0);
+            }
+            scope_num_with_perf[func_id]++;
         }
     }
 
@@ -96,11 +117,17 @@ private:
     {
         std::string name;
         int fd;
+        // Record accumulated values for update_data_scope, where the index of the vector is the uint16_t func_id.
+        std::vector<long long> scope_values;
     };
 
     int group;
     std::vector<struct counter> mCounters;
-
+    // Record number of scope calls with perf counter incremental greater than 0 (can happen in multiple bg threads)
+    std::vector<int32_t> scope_num_with_perf;
+    // Record number of scope calls that actually triggered the collect_scope (happen in 1 thread that calls the collection method)
+    std::vector<int32_t> scope_num_calls;
+    CollectorValueResults *mValueResults = nullptr;
 };
 
 class PerfCollector : public Collector
@@ -148,7 +175,8 @@ private:
 
         void update_data_scope(uint16_t func_id, struct snapshot& snap_start, struct snapshot& snap_end)
         {
-            eventCtx.update_data_scope(func_id, snap_start, snap_end, mResultsPerThread);
+            pid_t cur_tid = syscall(SYS_gettid);
+            eventCtx.update_data_scope(func_id, cur_tid == tid, snap_start, snap_end, mResultsPerThread);
         }
 
         void clear()

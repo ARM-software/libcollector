@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <unistd.h>
+#include <mutex>
+#include <condition_variable>
 
 #include "json/writer.h"
 
@@ -260,13 +262,18 @@ static void test7()
 	c.writeCSV("excel.csv");
 }
 
-void test8()
-{
-	printf("[test 8]: Testing collect_scope for the perf collector...\n");
+class Test8 {
+public:
 
-	// Specification:
-	// https://github.com/ARM-software/patrace/blob/master/patrace/doc/manual.md#generating-cpu-load-with-perf-collector
-	std::string collectorConfig = R"(
+  Test8() : test8_ready(false) {}
+
+  void run() {
+      printf("[test 8]: Testing collect_scope for the perf collector...\n");
+      std::vector<std::thread> threads;
+
+      // Specification:
+      // https://github.com/ARM-software/patrace/blob/master/patrace/doc/manual.md#generating-cpu-load-with-perf-collector
+      std::string collectorConfig = R"(
 	{
 		"perf": {
 			"set": 4,
@@ -298,42 +305,58 @@ void test8()
 			],
 		}
 	})";
-	Json::Value config;
-	std::stringstream(collectorConfig) >> config;
-	Collection c(config);
-	auto payload = [](int ops) {
-		int tmp = 1;
-		for (int i = 0; i < ops; i++) tmp *= rand();
-	};
+      Json::Value config;
+      std::stringstream(collectorConfig) >> config;
 
+      threads.emplace_back(&Test8::test8_worker, this, "patrace-1", 1000, 0);
+      threads.emplace_back(&Test8::test8_worker, this, "patrace-2", 1000, 1);
+      threads.emplace_back(&Test8::test8_worker, this, "mali-1", 100, 2);
+      threads.emplace_back(&Test8::test8_worker, this, "mali-2", 100, 3);
 
-	char *cur_thread_name = (char *)malloc(16);
-	prctl(PR_GET_NAME, (unsigned long)cur_thread_name, 0, 0, 0);
+      c = new Collection(config);
+      c->initialize();
+      c->start();
+      test8_ready.store(true);
+      test8_cv.notify_all();
+      for (auto &t : threads)
+          t.join();
+      c->stop();
 
-	std::string thread_name = "patrace-1";
-	prctl(PR_SET_NAME, (unsigned long)thread_name.c_str(), 0, 0, 0);
-	c.initialize();
+      Json::Value results = c->results();
+      Json::StyledWriter writer;
+      std::string data = writer.write(results);
+      printf("Results:\n%s", data.c_str());
+      c->writeJSON("results_collect_scope.json");
+  }
 
-	c.start();
-	for (int i = 0; i < 10; i++) {
-		c.collect_scope_start(1);
-		payload(10);
-		c.collect_scope_stop(1);
-		c.collect_scope_start(2);
-		payload(100);
-		c.collect_scope_stop(2);
-	}
-	c.stop();
+private:
+  void test8_worker(std::string const &thread_name, int ops, int scope_label_offset) {
+      prctl(PR_SET_NAME, (unsigned long)thread_name.c_str(), 0, 0, 0);
+      std::unique_lock<std::mutex> lk(test8_mtx);
+      test8_cv.wait(lk, [this] { return test8_ready.load(); });
+      printf("Thread %s started.\n", thread_name.c_str());
 
-	Json::Value results = c.results();
-	Json::StyledWriter writer;
-	std::string data = writer.write(results);
-	printf("Results:\n%s", data.c_str());
-	c.writeJSON("results_collect_scope.json");
+      auto payload = [](int ops) {
+          int tmp = 1;
+          for (int i = 0; i < ops; i++)
+              tmp *= rand();
+      };
 
-	// restore thread name
-	prctl(PR_SET_NAME, (unsigned long)cur_thread_name, 0, 0, 0);
-}
+      c->collect_scope_start(0 + scope_label_offset);
+      payload(10);
+      c->collect_scope_stop(0 + scope_label_offset);
+      c->collect_scope_start(5 + scope_label_offset);
+      payload(1000);
+      c->collect_scope_stop(5 + scope_label_offset);
+      printf("Thread %s finished.\n", thread_name.c_str());
+    //   usleep(1e5);
+  }
+
+  Collection *c;
+  std::atomic<bool> test8_ready;
+  std::condition_variable test8_cv;
+  std::mutex test8_mtx;
+};
 
 int main()
 {
@@ -346,7 +369,7 @@ int main()
 	test5();
 	test6();
 	test7(); // summarized results
-	test8(); // collect_scope
+	(new Test8())->run();
 	printf("ALL DONE!\n");
 	return 0;
 }
