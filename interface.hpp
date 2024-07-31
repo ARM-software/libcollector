@@ -90,8 +90,8 @@ public:
     virtual bool stop() { mCollecting = false; return true; }
     virtual bool postprocess(const std::vector<int64_t>& timing);
     virtual bool collect( int64_t ) = 0;
-    virtual bool collect_scope_start( int64_t now, uint16_t func_id) {return true; };
-    virtual bool collect_scope_stop( int64_t now, uint16_t func_id) { return true; };
+    virtual bool collect_scope_start( int64_t now, uint16_t func_id, int flags ) {return true; };
+    virtual bool collect_scope_stop( int64_t now, uint16_t func_id, int flags ) { return true; };
     virtual bool collecting() const { return mCollecting; }
     virtual const std::string& name() const { return mName; }
     virtual bool available() = 0;
@@ -256,11 +256,11 @@ public:
 
     /// Sample periodical data for per API instrumentation. Call this method before the payload
     /// execution. Currently only used for perf collector.
-    void collect_scope_start(uint16_t label);
+    void collect_scope_start(uint16_t label, int32_t flags);
 
     /// Sample periodical data for per API instrumentation. Call this method after the payload
     /// execution. Currently only used for perf collector.
-    void collect_scope_stop(uint16_t label);
+    void collect_scope_stop(uint16_t label, int32_t flags);
 
     /// Get the results as JSON
     Json::Value results();

@@ -36,6 +36,17 @@ enum cmn_node_type
     CMN_TYPE_WP = 0x7770,
 };
 
+enum collect_scope_flags: int32_t
+{
+    COLLECT_NOOP = 0x00,
+    COLLECT_ALL_THREADS = 0x01,
+    COLLECT_REPLAY_THREADS = 0x01 << 1,
+    COLLECT_BG_THREADS = 0x01 << 2,
+    COLLECT_MULTI_PMU_THREADS = 0x01 << 3,
+    COLLECT_BOOKER_THREADS = 0x01 << 4,
+    COLLECT_CSPMU_THREADS = 0x01 << 5,
+};
+
 struct snapshot {
     snapshot() : size(0) {}
 
@@ -147,8 +158,8 @@ public:
     virtual void summarize() override;
 
     /// Collector functions for perapi perf instrumentations.
-    virtual bool collect_scope_start(int64_t now, uint16_t func_id);
-    virtual bool collect_scope_stop(int64_t now, uint16_t func_id);
+    virtual bool collect_scope_start(int64_t now, uint16_t func_id, int32_t flags);
+    virtual bool collect_scope_stop(int64_t now, uint16_t func_id, int32_t flags);
 
   private:
     void create_perf_thread();
@@ -163,6 +174,7 @@ private:
     std::map<int, std::vector<struct event>> mMultiPMUEvents;
     std::map<int, std::vector<struct event>> mCSPMUEvents;
     std::map<std::string, std::vector<struct timespec>> mClocks; // device_name -> clock_vector
+    int last_collect_scope_flags = 0;
 
     struct perf_thread
     {

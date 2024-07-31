@@ -443,59 +443,99 @@ bool PerfCollector::collect(int64_t now)
     return true;
 }
 
-bool PerfCollector::collect_scope_start(int64_t now, uint16_t func_id) {
+bool PerfCollector::collect_scope_start(int64_t now, uint16_t func_id, int32_t flags) {
     if (!mCollecting) return false;
     struct snapshot snap;
-    for (perf_thread& t : mReplayThreads)
+    if (flags & COLLECT_REPLAY_THREADS || flags & COLLECT_ALL_THREADS)
     {
-        t.eventCtx.collect_scope(now, func_id, false);
+        for (perf_thread &t : mReplayThreads)
+        {
+            t.eventCtx.collect_scope(now, func_id, false);
+        }
     }
-    for (perf_thread& t : mBgThreads)
+    if (flags & COLLECT_BG_THREADS || flags & COLLECT_ALL_THREADS)
     {
-        t.eventCtx.collect_scope(now, func_id, false);
+        for (perf_thread &t : mBgThreads)
+        {
+            t.eventCtx.collect_scope(now, func_id, false);
+        }
     }
-    for (perf_thread& t : mMultiPMUThreads)
+    if (flags & COLLECT_MULTI_PMU_THREADS || flags & COLLECT_ALL_THREADS)
     {
-        t.eventCtx.collect_scope(now, func_id, false);
+        for (perf_thread &t : mMultiPMUThreads)
+        {
+            t.eventCtx.collect_scope(now, func_id, false);
+        }
     }
-    for (perf_thread& t : mBookerThread)
+    if (flags & COLLECT_BOOKER_THREADS || flags & COLLECT_ALL_THREADS)
     {
-        t.eventCtx.collect_scope(now, func_id, false);
+        for (perf_thread &t : mBookerThread)
+        {
+            t.eventCtx.collect_scope(now, func_id, false);
+        }
     }
-    for (perf_thread& t : mCSPMUThreads)
+    if (flags & COLLECT_CSPMU_THREADS || flags & COLLECT_ALL_THREADS)
     {
-        t.eventCtx.collect_scope(now, func_id, false);
+        for (perf_thread &t : mCSPMUThreads)
+        {
+            t.eventCtx.collect_scope(now, func_id, false);
+        }
     }
+    last_collect_scope_flags = flags;
     return true;
 }
 
-bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id) {
+bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id, int32_t flags) {
     if (!mCollecting) return false;
+    if (last_collect_scope_flags != flags) {
+        DBG_LOG("Error: Could not find the corresponding collect_scope_start call for func_id %ud.\n", func_id);
+        return false;
+    }
     struct snapshot snap_start, snap_stop;
-    for (perf_thread &t : mReplayThreads) {
-        snap_start = t.eventCtx.last_snap;
-        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.update_data_scope(func_id, snap_start, snap_stop);
+    if (flags & COLLECT_REPLAY_THREADS || flags & COLLECT_ALL_THREADS)
+    {
+        for (perf_thread &t : mReplayThreads)
+        {
+            snap_start = t.eventCtx.last_snap;
+            snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+            t.update_data_scope(func_id, snap_start, snap_stop);
+        }
     }
-    for (perf_thread &t : mBgThreads) {
-        snap_start = t.eventCtx.last_snap;
-        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.update_data_scope(func_id, snap_start, snap_stop);
+    if (flags & COLLECT_BG_THREADS || flags & COLLECT_ALL_THREADS)
+    {
+        for (perf_thread &t : mBgThreads)
+        {
+            snap_start = t.eventCtx.last_snap;
+            snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+            t.update_data_scope(func_id, snap_start, snap_stop);
+        }
     }
-    for (perf_thread &t : mMultiPMUThreads) {
-        snap_start = t.eventCtx.last_snap;
-        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.update_data_scope(func_id, snap_start, snap_stop);
+    if (flags & COLLECT_MULTI_PMU_THREADS || flags & COLLECT_ALL_THREADS)
+    {
+        for (perf_thread &t : mMultiPMUThreads)
+        {
+            snap_start = t.eventCtx.last_snap;
+            snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+            t.update_data_scope(func_id, snap_start, snap_stop);
+        }
     }
-    for (perf_thread &t : mBookerThread) {
-        snap_start = t.eventCtx.last_snap;
-        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.update_data_scope(func_id, snap_start, snap_stop);
+    if (flags & COLLECT_BOOKER_THREADS || flags & COLLECT_ALL_THREADS)
+    {
+        for (perf_thread &t : mBookerThread)
+        {
+            snap_start = t.eventCtx.last_snap;
+            snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+            t.update_data_scope(func_id, snap_start, snap_stop);
+        }
     }
-    for (perf_thread &t : mCSPMUThreads) {
-        snap_start = t.eventCtx.last_snap;
-        snap_stop = t.eventCtx.collect_scope(now, func_id, true);
-        t.update_data_scope(func_id, snap_start, snap_stop);
+    if (flags & COLLECT_CSPMU_THREADS || flags & COLLECT_ALL_THREADS)
+    {
+        for (perf_thread &t : mCSPMUThreads)
+        {
+            snap_start = t.eventCtx.last_snap;
+            snap_stop = t.eventCtx.collect_scope(now, func_id, true);
+            t.update_data_scope(func_id, snap_start, snap_stop);
+        }
     }
     return false;
 }
@@ -707,7 +747,23 @@ struct snapshot event_context::collect(int64_t now)
     return snap;
 }
 
-struct snapshot event_context::collect_scope(int64_t now, uint16_t func_id, bool stopping) {
+struct snapshot event_context::collect_scope(int64_t now, uint16_t func_id, bool stopping)
+{
+
+#if defined(__aarch64__)
+    // stop counters for arm64
+    uint64_t PMCNTENSET_EL0_safe;
+    uint64_t PMCR_EL0_safe;
+    asm volatile("mrs %0, PMCR_EL0" : "=r" (PMCR_EL0_safe));
+    asm volatile("msr PMCR_EL0, %0" : : "r" (PMCR_EL0_safe & 0xFFFFFFFFFFFFFFFE));
+#elif defined(__arm__)
+    // stop counters for arm32
+    uint64_t PMCNTENSET_EL0_safe;
+    uint64_t PMCR_EL0_safe;
+    asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(PMCR_EL0_safe));
+    asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(PMCR_EL0_safe & 0xFFFFFFFE));
+#endif
+
     if (stopping && last_snap_func_id != func_id) {
         DBG_LOG("Error: Could not find the corresponding collect_scope_start call for func_id %ud.\n", func_id);
     }
@@ -719,6 +775,17 @@ struct snapshot event_context::collect_scope(int64_t now, uint16_t func_id, bool
         last_snap_func_id = func_id;
         last_snap = snap;
     }
+
+#if defined(__aarch64__)
+    // start counters for arm64
+    asm volatile("msr PMCNTENSET_EL0, %0" : : "r" (PMCNTENSET_EL0_safe));
+    asm volatile("msr PMCR_EL0, %0" : : "r" (PMCR_EL0_safe));
+#elif defined(__arm__)
+    // start counters for arm32
+    asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r"(PMCNTENSET_EL0_safe));
+    asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(PMCR_EL0_safe));
+#endif
+
     return snap;
 }
 

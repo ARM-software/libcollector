@@ -1,4 +1,5 @@
 #include "interface.hpp"
+#include "collectors/perf.hpp"
 
 #include <assert.h>
 #include <stdio.h>
@@ -6,6 +7,7 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 #include <mutex>
+#include <memory>
 #include <condition_variable>
 
 #include "json/writer.h"
@@ -267,6 +269,10 @@ public:
 
   Test8() : test8_ready(false) {}
 
+  ~Test8() {
+	  delete c;
+  }
+
   void run() {
       printf("[test 8]: Testing collect_scope for the perf collector...\n");
       std::vector<std::thread> threads;
@@ -342,14 +348,18 @@ private:
               tmp *= rand();
       };
 
-      c->collect_scope_start(0 + scope_label_offset);
-      payload(10);
-      c->collect_scope_stop(0 + scope_label_offset);
-      c->collect_scope_start(5 + scope_label_offset);
-      payload(1000);
-      c->collect_scope_stop(5 + scope_label_offset);
+      if (strncmp(thread_name.c_str(), "patrace", 7) == 0) {
+          c->collect_scope_start(0 + scope_label_offset, COLLECT_REPLAY_THREADS);
+          payload(1000);
+          c->collect_scope_stop(0 + scope_label_offset, COLLECT_REPLAY_THREADS);
+      }
+
+      if (strncmp(thread_name.c_str(), "mali", 4) == 0) {
+          c->collect_scope_start(1 + scope_label_offset, COLLECT_BG_THREADS);
+          payload(1000);
+          c->collect_scope_stop(1 + scope_label_offset, COLLECT_BG_THREADS);
+      }
       printf("Thread %s finished.\n", thread_name.c_str());
-    //   usleep(1e5);
   }
 
   Collection *c;
@@ -369,7 +379,8 @@ int main()
 	test5();
 	test6();
 	test7(); // summarized results
-	(new Test8())->run();
+	auto test8 = std::unique_ptr<Test8>(new Test8());
+	test8->run();
 	printf("ALL DONE!\n");
 	return 0;
 }

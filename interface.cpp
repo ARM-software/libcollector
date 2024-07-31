@@ -450,20 +450,20 @@ void Collection::collect(std::vector<int64_t> custom)
     }
 }
 
-void Collection::collect_scope_start(uint16_t label) {
+void Collection::collect_scope_start(uint16_t label, int32_t flags) {
     const int64_t now = getTime();
     mScopeStartTime = now;
     for (Collector* c : mRunning)
     {
         if (!c->isThreaded())
         {
-            c->collect_scope_start(now, label);
+            c->collect_scope_start(now, label, flags);
         }
     }
     mScopeStarted = true;
 }
 
-void Collection::collect_scope_stop(uint16_t label) {
+void Collection::collect_scope_stop(uint16_t label, int32_t flags) {
     // A collect_scope_start and collect_scope_end pair is considered as one sample.
     if (!mScopeStarted) {
         DBG_LOG("WARNING: collect_scope_stop called without a corresponding collect_scope_start.\n");
@@ -476,7 +476,7 @@ void Collection::collect_scope_stop(uint16_t label) {
     {
         if (!c->isThreaded())
         {
-            c->collect_scope_stop(now, label);
+            c->collect_scope_stop(now, label, flags);
         }
     }
     mScopeStarted = false;
