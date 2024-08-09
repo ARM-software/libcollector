@@ -443,7 +443,37 @@ bool PerfCollector::collect(int64_t now)
     return true;
 }
 
+bool PerfCollector::perf_counter_pause() {
+#if defined(__aarch64__)
+    asm volatile("mrs %0, PMCNTENSET_EL0" : "=r" (PMCNTENSET_EL0_safe));
+    // stop counters for arm64
+    asm volatile("mrs %0, PMCR_EL0" : "=r" (PMCR_EL0_safe));
+    asm volatile("msr PMCR_EL0, %0" : : "r" (PMCR_EL0_safe & 0xFFFFFFFFFFFFFFFE));
+#elif defined(__arm__)
+    asm volatile("mrc p15, 0, %0, c9, c12, 1" : "=r"(PMCNTENSET_EL0_safe));
+    // stop counters for arm32
+    asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(PMCR_EL0_safe));
+    asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(PMCR_EL0_safe & 0xFFFFFFFE));
+#endif
+    return true;
+}
+
+bool PerfCollector::perf_counter_resume() {
+#if defined(__aarch64__)
+    // start counters for arm64
+    asm volatile("msr PMCNTENSET_EL0, %0" : : "r" (PMCNTENSET_EL0_safe));
+    asm volatile("msr PMCR_EL0, %0" : : "r" (PMCR_EL0_safe));
+#elif defined(__arm__)
+    // start counters for arm32
+    asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r"(PMCNTENSET_EL0_safe));
+    asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(PMCR_EL0_safe));
+#endif
+    return true;
+}
+
+
 bool PerfCollector::collect_scope_start(int64_t now, uint16_t func_id, int32_t flags) {
+    if (!perf_counter_pause()) return false;
     if (!mCollecting) return false;
     struct snapshot snap;
     if (flags & COLLECT_REPLAY_THREADS || flags & COLLECT_ALL_THREADS)
@@ -482,10 +512,12 @@ bool PerfCollector::collect_scope_start(int64_t now, uint16_t func_id, int32_t f
         }
     }
     last_collect_scope_flags = flags;
+    if (!perf_counter_resume()) return false;
     return true;
 }
 
 bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id, int32_t flags) {
+    if (!perf_counter_pause()) return false;
     if (!mCollecting) return false;
     if (last_collect_scope_flags != flags) {
         DBG_LOG("Error: Could not find the corresponding collect_scope_start call for func_id %ud.\n", func_id);
@@ -537,6 +569,7 @@ bool PerfCollector::collect_scope_stop(int64_t now, uint16_t func_id, int32_t fl
             t.update_data_scope(func_id, snap_start, snap_stop);
         }
     }
+    if (!perf_counter_resume()) return false;
     return false;
 }
 
@@ -749,21 +782,6 @@ struct snapshot event_context::collect(int64_t now)
 
 struct snapshot event_context::collect_scope(int64_t now, uint16_t func_id, bool stopping)
 {
-
-#if defined(__aarch64__)
-    // stop counters for arm64
-    uint64_t PMCNTENSET_EL0_safe;
-    uint64_t PMCR_EL0_safe;
-    asm volatile("mrs %0, PMCR_EL0" : "=r" (PMCR_EL0_safe));
-    asm volatile("msr PMCR_EL0, %0" : : "r" (PMCR_EL0_safe & 0xFFFFFFFFFFFFFFFE));
-#elif defined(__arm__)
-    // stop counters for arm32
-    uint64_t PMCNTENSET_EL0_safe;
-    uint64_t PMCR_EL0_safe;
-    asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(PMCR_EL0_safe));
-    asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(PMCR_EL0_safe & 0xFFFFFFFE));
-#endif
-
     if (stopping && last_snap_func_id != func_id) {
         DBG_LOG("Error: Could not find the corresponding collect_scope_start call for func_id %ud.\n", func_id);
     }
@@ -775,17 +793,6 @@ struct snapshot event_context::collect_scope(int64_t now, uint16_t func_id, bool
         last_snap_func_id = func_id;
         last_snap = snap;
     }
-
-#if defined(__aarch64__)
-    // start counters for arm64
-    asm volatile("msr PMCNTENSET_EL0, %0" : : "r" (PMCNTENSET_EL0_safe));
-    asm volatile("msr PMCR_EL0, %0" : : "r" (PMCR_EL0_safe));
-#elif defined(__arm__)
-    // start counters for arm32
-    asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r"(PMCNTENSET_EL0_safe));
-    asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(PMCR_EL0_safe));
-#endif
-
     return snap;
 }
 

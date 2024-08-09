@@ -7,7 +7,7 @@ set(SRC_ROOT ".")
 option(VULKAN_LAYER "Build Vulkan layer" OFF)
 option(BUILD_STATIC "Build static version" ON)
 
-add_definitions(-std=c++11 -Wall -fno-strict-aliasing -ggdb -Wno-deprecated-declarations)
+add_definitions(-std=c++11 -Wall -Werror -fno-strict-aliasing -ggdb -Wno-deprecated-declarations)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
 set(COLLECTOR_INCLUDES

@@ -130,6 +130,11 @@ private:
         int fd;
         // Record accumulated values for update_data_scope, where the index of the vector is the uint16_t func_id.
         std::vector<long long> scope_values;
+
+        counter() {
+            scope_values.reserve(512);
+            scope_values.resize(512, 0);
+        }
     };
 
     int group;
@@ -160,6 +165,8 @@ public:
     /// Collector functions for perapi perf instrumentations.
     virtual bool collect_scope_start(int64_t now, uint16_t func_id, int32_t flags);
     virtual bool collect_scope_stop(int64_t now, uint16_t func_id, int32_t flags);
+    bool perf_counter_pause();
+    bool perf_counter_resume();
 
   private:
     void create_perf_thread();
@@ -175,6 +182,9 @@ private:
     std::map<int, std::vector<struct event>> mCSPMUEvents;
     std::map<std::string, std::vector<struct timespec>> mClocks; // device_name -> clock_vector
     int last_collect_scope_flags = 0;
+
+    uint64_t PMCNTENSET_EL0_safe = 0;
+    uint64_t PMCR_EL0_safe = 0;
 
     struct perf_thread
     {
