@@ -29,14 +29,8 @@ struct vkCollectorContext;
 struct InstanceDispatchTable {
     PFN_vkGetInstanceProcAddr gipa;
     PFN_vkDestroyInstance nextDestroyInstance;
+    PFN_vkEnumerateDeviceExtensionProperties nextEnumerateDeviceExtensionProperties;
 };
-
-#ifdef ANDROID
-struct InstanceEnumerationTable {
-    PFN_vkEnumerateInstanceLayerProperties nextEnumerateInstanceLayerProperties;
-    PFN_vkEnumerateInstanceExtensionProperties nextEnumerateInstanceExtensionProperties;
-};
-#endif
 
 struct vkCollectorContext {
     vkCollectorContext();
@@ -83,65 +77,5 @@ struct vkCollectorContext {
 
 std::string get_config_path();
 bool read_config();
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName);
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char* pName);
-
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceLayerProperties(
-    uint32_t* pPropertyCount,
-    VkLayerProperties* pProperties);
-
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceExtensionProperties(
-    const char* pLayerName,
-    uint32_t* pPropertyCount,
-    VkExtensionProperties* pProperties);
-
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkCreateInstance(
-    const VkInstanceCreateInfo* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkInstance* pInstance);
-
-VK_LAYER_EXPORT void VKAPI_CALL lc_vkDestroyInstance(
-    VkInstance instance,
-    const VkAllocationCallbacks* pAllocator);
-
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkCreateDevice(
-    VkPhysicalDevice physicalDevice,
-    const VkDeviceCreateInfo* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkDevice* pDevice);
-
-VK_LAYER_EXPORT void VKAPI_CALL lc_vkDestroyDevice(
-    VkDevice device,
-    const VkAllocationCallbacks* pAllocator);
-
-VK_LAYER_EXPORT void VKAPI_CALL lc_vkGetDeviceQueue(
-    VkDevice device,
-    uint32_t queueFamilyIndex,
-    uint32_t queueIndex,
-    VkQueue* pQueue);
-
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkQueueSubmit(
-    VkQueue queue,
-    uint32_t submitCount,
-    const VkSubmitInfo* pSubmits,
-    VkFence fence);
-
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkQueuePresentKHR(
-    VkQueue queue,
-    const VkPresentInfoKHR* pPresentInfo);
-
-VkResult lc_pre_vkEnumerateInstanceExtensionProperties(
-    const VkEnumerateInstanceExtensionPropertiesChain* pChain,
-    const char* pLayerName,
-    uint32_t* pPropertyCount,
-    VkExtensionProperties* pProperties);
-
-VkResult lc_pre_vkEnumerateInstanceLayerProperties(
-    const VkEnumerateInstanceLayerPropertiesChain* pChain,
-    uint32_t* pPropertyCount,
-    VkLayerProperties* pProperties);
-
 
 #endif

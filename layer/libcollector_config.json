@@ -1,0 +1,38 @@
+{
+    "result_file_basename" : "/sdcard/Download/results.json",
+    "num_subframes_per_frame" : 1,
+    "frame_trigger_function" : "vkQueuePresentKHR",
+    "start_frame" : 0,
+    "end_frame" : 99999,
+    "collectors": {
+        "perf": {
+            "set": 4,
+            "event": [
+                {
+                    "name": "CPUCyclesUser",
+                    "type": 4,
+                    "config": 17,
+                    "excludeKernel": true
+                },
+                {
+                    "name": "CPUCyclesKernel",
+                    "type": 4,
+                    "config": 17,
+                    "excludeUser": true
+                },
+                {
+                    "name": "CPUInstructionUser",
+                    "type": 4,
+                    "config": 8,
+                    "excludeKernel": true
+                },
+                {
+                    "name": "CPUInstructionKernel",
+                    "type": 4,
+                    "config": 8,
+                    "excludeUser": true
+                }
+            ]
+        }
+    }
+}

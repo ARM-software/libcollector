@@ -69,6 +69,7 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_LDLIBS    := -L$(SYSROOT)/usr/lib -llog -latomic
 
+LOCAL_LDFLAGS   += -Wl,-z,max-page-size=16384
 LOCAL_STATIC_LIBRARIES := collector_android
 LOCAL_CPP_FEATURES     += exceptions
 

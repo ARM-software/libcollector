@@ -45,3 +45,4 @@ find_library(android-lib android)
 
 add_library(VkLayer_libcollector SHARED ${LAYER_SOURCES})
 target_link_libraries(VkLayer_libcollector ${log-lib} ${android-lib})
+target_link_options(VkLayer_libcollector PRIVATE -Wl,-z,max-page-size=16384)

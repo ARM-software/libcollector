@@ -1,7 +1,7 @@
 #include "layer/vulkan_layer.hpp"
 
 static std::mutex context_mutex;
-static std::unordered_map<VkInstance, InstanceDispatchTable*> instance_dispatch_map;
+static std::unordered_map<void*, InstanceDispatchTable*> instance_dispatch_map;
 static std::unordered_map<VkDevice, vkCollectorContext*> device_to_context_map;
 static std::unordered_map<VkQueue, vkCollectorContext*> queue_to_context_map;
 
@@ -11,12 +11,21 @@ static Json::Value glibcollector_config;
 std::mutex vkCollectorContext::id_mutex;
 uint32_t vkCollectorContext::next_id = 0;
 
+template <typename dispatchable_type>
+void *get_key(dispatchable_type inst) {
+    return *reinterpret_cast<void **>(inst);
+}
+
+#define GET_PROC_ADDR(func)       \
+    if (!strcmp(funcName, #func)) \
+        return (PFN_vkVoidFunction)&lc_##func;
+
 std::string get_config_path() {
     std::string config_path = "libcollector_config.json";
 
     #ifdef ANDROID
         // TODO(tomped01): Find a better way on android
-        config_path = "/sdcard/libcollector_config.json";
+        config_path = "/sdcard/Download/libcollector_config.json";
     #else
         const char* env_path = std::getenv("VK_LIBCOLLECTOR_CONFIG_PATH");
         if (env_path) {
@@ -68,7 +77,7 @@ bool read_config() {
 
     if (glibcollector_config.get("result_file_basename", "").asString() == "") {
         #ifdef ANDROID
-            glibcollector_config["result_file_basename"] = "/sdcard/results.json";
+            glibcollector_config["result_file_basename"] = "/sdcard/Download/results.json";
         #else
             glibcollector_config["result_file_basename"] = "results.json";
         #endif
@@ -85,54 +94,6 @@ bool read_config() {
     context_mutex.unlock();
     return true;
 }
-
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName) {
-    if (!gconfig_initialized) {
-        // Do this as early as possible
-        read_config();
-
-        gconfig_initialized = true;
-    }
-
-    if(!strcmp(pName, "vkGetInstanceProcAddr")) return (PFN_vkVoidFunction)&vkGetInstanceProcAddr;
-    if(!strcmp(pName, "vkCreateInstance")) return (PFN_vkVoidFunction)&lc_vkCreateInstance;
-    if(!strcmp(pName, "vkCreateDevice")) return (PFN_vkVoidFunction)&lc_vkCreateDevice;
-    if(!strcmp(pName, "vkDestroyInstance")) return (PFN_vkVoidFunction)&lc_vkDestroyInstance;
-    if(!strcmp(pName, "vkEnumerateInstanceLayerProperties")) return (PFN_vkVoidFunction)&lc_vkEnumerateInstanceLayerProperties;
-    if(!strcmp(pName, "vkEnumerateInstanceExtensionProperties")) return (PFN_vkVoidFunction)&lc_vkEnumerateInstanceExtensionProperties;
-
-    context_mutex.lock();
-    InstanceDispatchTable* instance_dtable = instance_dispatch_map[instance];
-    PFN_vkGetInstanceProcAddr gipa = instance_dtable->gipa;
-    context_mutex.unlock();
-
-    return gipa(instance, pName);
-}
-
-
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char* pName) {
-    if(!strcmp(pName, "vkGetDeviceProcAddr")) return (PFN_vkVoidFunction)&vkGetDeviceProcAddr;
-    if(!strcmp(pName, "vkDestroyDevice")) return (PFN_vkVoidFunction)&lc_vkDestroyDevice;
-    if(!strcmp(pName, "vkGetDeviceQueue")) return (PFN_vkVoidFunction)&lc_vkGetDeviceQueue;
-
-    if (glibcollector_config.get("frame_trigger_function", "").asString() == std::string("vkQueueSubmit")) {
-        DBG_LOG("LIBCOLLECTOR LAYER: Sampling function set to vkQueueSubmit\n");
-        if(!strcmp(pName, "vkQueueSubmit")) return (PFN_vkVoidFunction)&lc_vkQueueSubmit;
-    } else {
-        DBG_LOG("LIBCOLLECTOR LAYER: Sampling function set to vkQueuePresentKHR\n");
-        if(!strcmp(pName, "vkQueuePresentKHR")) return (PFN_vkVoidFunction)&lc_vkQueuePresentKHR;
-    }
-
-    context_mutex.lock();
-    vkCollectorContext* context = device_to_context_map[device];
-    PFN_vkGetDeviceProcAddr gdpa;
-    gdpa = context->gdpa;
-    context_mutex.unlock();
-
-    return gdpa(device, pName);
-}
-
 
 VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkCreateInstance(
     const VkInstanceCreateInfo* pCreateInfo,
@@ -158,9 +119,10 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkCreateInstance(
     InstanceDispatchTable* new_table = new InstanceDispatchTable();
     new_table->gipa = (PFN_vkGetInstanceProcAddr)gipa(*pInstance, "vkGetInstanceProcAddr");
     new_table->nextDestroyInstance = (PFN_vkDestroyInstance)gipa(*pInstance, "vkDestroyInstance");
+    new_table->nextEnumerateDeviceExtensionProperties = (PFN_vkEnumerateDeviceExtensionProperties)gipa(*pInstance, "vkEnumerateDeviceExtensionProperties");
 
     context_mutex.lock();
-    instance_dispatch_map[*pInstance] = new_table;
+    instance_dispatch_map[get_key(*pInstance)] = new_table;
 
     context_mutex.unlock();
 
@@ -173,9 +135,9 @@ VK_LAYER_EXPORT void VKAPI_CALL lc_vkDestroyInstance(
     const VkAllocationCallbacks* pAllocator
 ) {
     context_mutex.lock();
-    InstanceDispatchTable* table = instance_dispatch_map[instance];
+    InstanceDispatchTable* table = instance_dispatch_map[get_key(instance)];
     PFN_vkDestroyInstance nextDestroyInstance = table->nextDestroyInstance;
-    instance_dispatch_map.erase(instance);
+    instance_dispatch_map.erase(get_key(instance));
     context_mutex.unlock();
 
     delete table;
@@ -302,9 +264,9 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkQueuePresentKHR(
 }
 
 
-// Pre-instance functions
+// Enum-instance functions
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceLayerProperties(
+VK_LAYER_EXPORT VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateInstanceLayerProperties(
     uint32_t* pPropertyCount,
     VkLayerProperties* pProperties
 ) {
@@ -322,7 +284,17 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceLayerProperties(
     return VK_SUCCESS;
 }
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceExtensionProperties(
+
+VK_LAYER_EXPORT VkResult VKAPI_CALL vkEnumerateDeviceLayerProperties(
+    VkPhysicalDevice physicalDevice,
+    uint32_t *pPropertyCount,
+    VkLayerProperties *pProperties
+) {
+    return vkEnumerateInstanceLayerProperties(pPropertyCount, pProperties);
+}
+
+
+VK_LAYER_EXPORT VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateInstanceExtensionProperties(
     const char* pLayerName,
     uint32_t* pPropertyCount,
     VkExtensionProperties* pProperties
@@ -337,38 +309,90 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL lc_vkEnumerateInstanceExtensionProperties(
     return VK_ERROR_LAYER_NOT_PRESENT;
 }
 
-// Pre-instance interface functions, not currently in use, but can be enabled if/when we update to manifest format 1.2.1
+VK_LAYER_EXPORT VkResult VKAPI_CALL vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice,
+                                                                         const char *pLayerName,
+                                                                         uint32_t *pPropertyCount,
+                                                                         VkExtensionProperties *pProperties)
+{
+    if (pLayerName == NULL || strcmp(pLayerName, "VK_LAYER_ARM_libcollector")) {
+        if (physicalDevice == VK_NULL_HANDLE)
+        {
+            return VK_SUCCESS;
+        }
 
-VkResult lc_pre_vkEnumerateInstanceExtensionProperties(
-    const VkEnumerateInstanceExtensionPropertiesChain* pChain,
-    const char* pLayerName,
-    uint32_t* pPropertyCount,
-    VkExtensionProperties* pProperties
-) {
-    if (pLayerName == NULL) {
-        return VK_ERROR_LAYER_NOT_PRESENT;
-    } else if (!strcmp(pLayerName, "VK_LAYER_ARM_libcollector")) {
-        return pChain->pfnNextLayer(pChain->pNextLink, pLayerName, pPropertyCount, pProperties);
+        return instance_dispatch_map[get_key(physicalDevice)]->nextEnumerateDeviceExtensionProperties(
+            physicalDevice, pLayerName, pPropertyCount, pProperties);
     }
 
-    return VK_ERROR_LAYER_NOT_PRESENT;
+    if (pPropertyCount != nullptr) {
+        *pPropertyCount = 0;
+    }
+
+    return VK_SUCCESS;
 }
 
-VkResult lc_pre_vkEnumerateInstanceLayerProperties(
-    const VkEnumerateInstanceLayerPropertiesChain* pChain,
-    uint32_t* pPropertyCount,
-    VkLayerProperties* pProperties
-) {
-    if (pProperties == nullptr) {
-        *pPropertyCount = 1;
+
+VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL lc_vkGetDeviceProcAddr(VkDevice device, const char *funcName) {
+    GET_PROC_ADDR(vkGetDeviceProcAddr);
+    GET_PROC_ADDR(vkDestroyDevice);
+    GET_PROC_ADDR(vkGetDeviceQueue);
+
+    if (glibcollector_config.get("frame_trigger_function", "").asString() == std::string("vkQueueSubmit")) {
+        DBG_LOG("LIBCOLLECTOR LAYER: Sampling function set to vkQueueSubmit\n");
+        GET_PROC_ADDR(vkQueueSubmit);
     } else {
-        const char* layer_name = "VK_LAYER_ARM_libcollector";
-        strncpy(pProperties[0].layerName, layer_name, strlen(layer_name) + 1);
-        pProperties[0].specVersion = VK_MAKE_API_VERSION(0, 1, 1, 2);
-        pProperties[0].implementationVersion = 2;
-        const char* layer_description = "ARM libcollector layer implementation.";
-        strncpy(pProperties[0].description, layer_description, strlen(layer_description) + 1);
+        DBG_LOG("LIBCOLLECTOR LAYER: Sampling function set to vkQueuePresentKHR\n");
+        GET_PROC_ADDR(vkQueuePresentKHR);
     }
+
+    context_mutex.lock();
+    vkCollectorContext* context = device_to_context_map[device];
+    PFN_vkGetDeviceProcAddr gdpa;
+    gdpa = context->gdpa;
+    context_mutex.unlock();
+
+    return gdpa(device, funcName);
+}
+
+
+VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *funcName) {
+    return lc_vkGetDeviceProcAddr(device, funcName);
+}
+
+
+VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL lc_vkGetInstanceProcAddr(VkInstance instance,
+                                                                       const char *funcName) {
+    if (!gconfig_initialized) {
+        // Do this as early as possible
+        read_config();
+
+        gconfig_initialized = true;
+    }
+
+    GET_PROC_ADDR(vkGetInstanceProcAddr);
+    GET_PROC_ADDR(vkCreateInstance);
+    GET_PROC_ADDR(vkCreateDevice);
+    GET_PROC_ADDR(vkDestroyInstance);
+
+    context_mutex.lock();
+    InstanceDispatchTable* instance_dtable = instance_dispatch_map[get_key(instance)];
+    PFN_vkGetInstanceProcAddr gipa = instance_dtable->gipa;
+    context_mutex.unlock();
+
+    return gipa(instance, funcName);
+}
+
+
+VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *funcName) {
+    return lc_vkGetInstanceProcAddr(instance, funcName);
+}
+
+
+VK_LAYER_EXPORT VKAPI_ATTR VkResult VKAPI_CALL
+vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct) {
+    pVersionStruct->pfnGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)&lc_vkGetInstanceProcAddr;
+    pVersionStruct->pfnGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)&lc_vkGetDeviceProcAddr;
+    pVersionStruct->pfnGetPhysicalDeviceProcAddr = nullptr;
 
     return VK_SUCCESS;
 }

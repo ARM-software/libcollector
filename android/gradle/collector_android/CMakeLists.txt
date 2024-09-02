@@ -49,3 +49,4 @@ find_library(android-lib android)
 
 add_executable(burrow ${BURROW_SOURCES})
 target_link_libraries(burrow app-glue ${log-lib} ${android-lib} ${app-glue} collector_android)
+target_link_options(burrow PRIVATE -Wl,-z,max-page-size=16384)

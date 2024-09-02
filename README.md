@@ -8,6 +8,9 @@ ferret.py.
 
 Build
 =====
+```
+git submodule update --init --recursive
+```
 
 Linux
 -----
@@ -69,6 +72,9 @@ Example:
 Using as a layer (Vulkan only)
 ==============================
 
+Linux
+-----
+
 Once built, the layer and json manifest will be in <build_dir>/implicit_layer.d
 
 Set the following env. vars to enable the layer on linux:
@@ -86,8 +92,24 @@ Then set the following env var to point to your libcollector JSON configuration 
 export VK_LIBCOLLECTOR_CONFIG_PATH=<path_to_json>
 ```
 
+Android
+-------
+
+Local file to push to the location on Android specified:
+
+```bash
+adb push arm64/libVkLayer_libcollector.so   /data/app/{app_path}/lib/arm64/
+adb push layer/libcollector_config.json     /sdcard/Download/
+```
+
+Set the following env. vars to enable the layer on Android:
+
+```bash
+adb shell setprop debug.vulkan.layer.1   VK_LAYER_ARM_libcollector
+```
+
 Then run your app as normal. One result file will be created per device in your application, and by default the results are written to the run directory.
-To override this, set the "result_file_basename" field in the config json.
+To override this, set the "result_file_basename" field in the config json. Get the result file in the specified location, for example: /sdcard/Download/results_device_0.json
 
 JSON interface (layer specific)
 ---------------------------
