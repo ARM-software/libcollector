@@ -81,7 +81,6 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name,
         volatile uint64_t pmcr_el0;
         asm volatile("mrs %0, PMCR_EL0" : "=r"(pmcr_el0));
         pmu_counter_bits = ((pmcr_el0 & 0x80) == 0x80 ? 64 : 32);
-
         DBG_LOG("pmu counter bits are: %u\n", pmu_counter_bits);
         DBG_LOG("pmcr_el0 is: %lu\n", pmcr_el0);
     }
@@ -479,6 +478,7 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
 
     Json::Value replayValue;
     replayValue["CCthread"] = "replayMainThreads";
+
     for (perf_thread& t : mReplayThreads)
     {
         Json::Value perf_threadValue;
