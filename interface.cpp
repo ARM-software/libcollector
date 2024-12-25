@@ -4,9 +4,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <string.h>
 #include <unistd.h>
-#include <chrono>
+#include <functional>
 
 #ifndef __APPLE__
 #include "collectors/perf.hpp"
@@ -188,7 +187,7 @@ SysfsCollector::~SysfsCollector()
 
 // ---------- COLLECTION ----------
 
-Collection::Collection(const std::string& config_str)
+Collection::Collection(const std::string& config_str, bool enablePerapiPerf) : mEnablePerapiPerf(enablePerapiPerf)
 {
 
     Json::Value jsonConfig;
@@ -204,56 +203,66 @@ Collection::Collection(const std::string& config_str)
     init_from_json(jsonConfig);
 }
 
-Collection::Collection(const Json::Value& config) : mConfig(config)
+Collection::Collection(const Json::Value& config, bool enablePerapiPerf) : mEnablePerapiPerf(enablePerapiPerf), mConfig(config)
 {
     init_from_json(config);
 }
 
 void Collection::init_from_json(const Json::Value& config)
 {
-    #ifndef __APPLE__
-    mCollectors.push_back(new PerfCollector(config, "perf"));
-    mCollectors.push_back(new SysfsCollector(config, "battery_temperature",
-        { "/sys/class/power_supply/battery/temp",
-          "/sys/devices/platform/android-battery/power_supply/android-battery/temp", // Nexus 10
-          "/sys/class/power_supply/battery/batt_temp" })); // teclast tpad-1
-    mCollectors.push_back(new CPUFreqCollector(config, "cpufreq"));
-    mCollectors.push_back(new SysfsCollector(config, "memfreq",
-        { "/sys/class/devfreq/exynos5-busfreq-mif/cur_freq", // note 3
-          "/sys/class/devfreq/exynos5-devfreq-mif/cur_freq", // note 4
-          "/sys/devices/17000010.devfreq_mif/devfreq/17000010.devfreq_mif/cur_freq" })); // Mali S7
-    mCollectors.push_back(new SysfsCollector(config, "memfreqdisplay",
-        { "/sys/devices/17000030.devfreq_disp/devfreq/17000030.devfreq_disp/cur_freq" })); // Mali S7
-    mCollectors.push_back(new SysfsCollector(config, "memfreqint",
-        { "/sys/class/devfreq/exynos5-busfreq-int/cur_freq",    // note 3
-          "/sys/class/devfreq/exynos5-devfreq-int/cur_freq", // note 4
-          "/sys/devices/17000020.devfreq_int/devfreq/17000020.devfreq_int/cur_freq" })); // Mali S7
-    mCollectors.push_back(new SysfsCollector(config, "gpu_active_time",
-        { "/sys/devices/platform/mali.0/power/runtime_active_time",    // mali
-          "/sys/devices/platform/pvrsrvkm.0/power/runtime_active_time", // power-vr
-          "/sys/devices/virtual/graphics/fb0/power/runtime_active_time" }, // adreno
-        true)); // accumulative value
-    mCollectors.push_back(new SysfsCollector(config, "gpu_suspended_time",
-        { "/sys/devices/platform/mali.0/power/runtime_suspended_time",    // mali
-          "/sys/devices/platform/pvrsrvkm.0/power/runtime_suspended_time", // power-vr
-          "/sys/devices/virtual/graphics/fb0/power/runtime_suspended_time" }, // adreno (but only for framebuffer zero!)
-        true)); // accumulative value
-    mCollectors.push_back(new SysfsCollector(config, "cpufreqtrans",
-        { "/sys/devices/system/cpu/cpu0/cpufreq/stats/total_trans" },
-        true)); // accumulative value
-    if (config.isMember("debug") && config["debug"].asBool()) mDebug = true;
+#ifndef __APPLE__
+    if (mEnablePerapiPerf)
+    {
+        mCollectors.push_back(new PerfCollector(config, "perf", true));
+    }
+    else
+    {
+        mCollectors.push_back(new PerfCollector(config, "perf"));
+        mCollectors.push_back(new SysfsCollector(config, "battery_temperature",
+            { "/sys/class/power_supply/battery/temp",
+            "/sys/devices/platform/android-battery/power_supply/android-battery/temp", // Nexus 10
+            "/sys/class/power_supply/battery/batt_temp" })); // teclast tpad-1
+        mCollectors.push_back(new CPUFreqCollector(config, "cpufreq"));
+        mCollectors.push_back(new SysfsCollector(config, "memfreq",
+            { "/sys/class/devfreq/exynos5-busfreq-mif/cur_freq", // note 3
+            "/sys/class/devfreq/exynos5-devfreq-mif/cur_freq", // note 4
+            "/sys/devices/17000010.devfreq_mif/devfreq/17000010.devfreq_mif/cur_freq" })); // Mali S7
+        mCollectors.push_back(new SysfsCollector(config, "memfreqdisplay",
+            { "/sys/devices/17000030.devfreq_disp/devfreq/17000030.devfreq_disp/cur_freq" })); // Mali S7
+        mCollectors.push_back(new SysfsCollector(config, "memfreqint",
+            { "/sys/class/devfreq/exynos5-busfreq-int/cur_freq",    // note 3
+            "/sys/class/devfreq/exynos5-devfreq-int/cur_freq", // note 4
+            "/sys/devices/17000020.devfreq_int/devfreq/17000020.devfreq_int/cur_freq" })); // Mali S7
+        mCollectors.push_back(new SysfsCollector(config, "gpu_active_time",
+            { "/sys/devices/platform/mali.0/power/runtime_active_time",    // mali
+            "/sys/devices/platform/pvrsrvkm.0/power/runtime_active_time", // power-vr
+            "/sys/devices/virtual/graphics/fb0/power/runtime_active_time" }, // adreno
+            true)); // accumulative value
+        mCollectors.push_back(new SysfsCollector(config, "gpu_suspended_time",
+            { "/sys/devices/platform/mali.0/power/runtime_suspended_time",    // mali
+            "/sys/devices/platform/pvrsrvkm.0/power/runtime_suspended_time", // power-vr
+            "/sys/devices/virtual/graphics/fb0/power/runtime_suspended_time" }, // adreno (but only for framebuffer zero!)
+            true)); // accumulative value
+        mCollectors.push_back(new SysfsCollector(config, "cpufreqtrans",
+            { "/sys/devices/system/cpu/cpu0/cpufreq/stats/total_trans" },
+            true)); // accumulative value
+        if (config.isMember("debug") && config["debug"].asBool()) mDebug = true;
 #if defined(ANDROID) || defined(__ANDROID__)
-    mCollectors.push_back(new StreamlineCollector(config, "streamline"));
+        mCollectors.push_back(new StreamlineCollector(config, "streamline"));
 #endif
-    mCollectors.push_back(new MemoryCollector(config, "memory"));
-    mCollectors.push_back(new CPUTemperatureCollector(config, "cputemp"));
-    mCollectors.push_back(new GPUFreqCollector(config, "gpufreq"));
-    mCollectors.push_back(new PowerDataCollector(config, "power"));
-    mCollectors.push_back(new FerretCollector(config, "ferret"));
-    mCollectors.push_back(new ProcFSStatCollector(config, "procfs"));
-    mCollectors.push_back(new MaliCounterCollector(config, "malicounters"));
+        mCollectors.push_back(new MemoryCollector(config, "memory"));
+        mCollectors.push_back(new CPUTemperatureCollector(config, "cputemp"));
+        mCollectors.push_back(new GPUFreqCollector(config, "gpufreq"));
+        mCollectors.push_back(new PowerDataCollector(config, "power"));
+        mCollectors.push_back(new FerretCollector(config, "ferret"));
+        mCollectors.push_back(new ProcFSStatCollector(config, "procfs"));
+        mCollectors.push_back(new MaliCounterCollector(config, "malicounters"));
+        // Various specializations
+        mCollectorMap["battery_temperature"]->doubleTransform(0.1); // divide by 10 and store as float
+    }
 #endif
-    mCollectors.push_back(new RusageCollector(config, "rusage"));
+    if (!mEnablePerapiPerf)
+        mCollectors.push_back(new RusageCollector(config, "rusage"));
 
     for (Collector* c : mCollectors)
     {
@@ -264,9 +273,6 @@ void Collection::init_from_json(const Json::Value& config)
         }
         mCollectorMap[c->name()] = c;
     }
-
-    // Various specializations
-    mCollectorMap["battery_temperature"]->doubleTransform(0.1); // divide by 10 and store as float
 }
 
 Collection::~Collection()
@@ -388,7 +394,14 @@ void Collection::start(const std::vector<std::string>& headers)
         if (c->isThreaded())
         {
             c->finished = false;
-            c->thread = std::thread(&Collector::loop, c);
+            if (mEnablePerapiPerf)
+            {
+                c->thread = std::thread(std::function<void()>());
+            }
+            else
+            {
+                c->thread = std::thread(&Collector::loop, c);
+            }
             int failure = pthread_setname_np(
                 c->thread.native_handle(),
                 c->name().c_str());
@@ -450,29 +463,26 @@ void Collection::collect(std::vector<int64_t> custom)
     }
 }
 
-void Collection::collect_scope_start(uint16_t label, int32_t flags) {
+void Collection::collect_scope_start(uint16_t label, int32_t flags, int tid) {
     // Not getting the current time as it introduces huge kernel cycle overhead to the perf collector.
-    const int64_t now = 0;
-    // mScopeStartTime = now;
     for (Collector* c : mRunning)
     {
         if (!c->isThreaded())
         {
-            c->collect_scope_start(now, label, flags);
+            c->collect_scope_start(label, flags, tid);
         }
     }
 }
 
-void Collection::collect_scope_stop(uint16_t label, int32_t flags) {
+void Collection::collect_scope_stop(uint16_t label, int32_t flags, int tid) {
     // Not getting the current time as it introduces huge kernel cycle overhead to the perf collector.
-    const int64_t now = 0;
     // Timing is not enabled to avoid extreme large json outputs.
     // mTiming.push_back(now - mScopeStartTime);
     for (Collector* c : mRunning)
     {
         if (!c->isThreaded())
         {
-            c->collect_scope_stop(now, label, flags);
+            c->collect_scope_stop(label, flags, tid);
         }
     }
 }

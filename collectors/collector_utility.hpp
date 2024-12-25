@@ -2,7 +2,6 @@
 
 // This module includes utilities for writing collectors
 
-#include <vector>
 #include <sys/stat.h>
 
 #include "interface.hpp"
@@ -16,7 +15,6 @@ std::string getMidgardInstrOutputPath();
 
 // Hack to workaround strange missing support for std::to_string in Android
 #ifdef __ANDROID__
-#include <string>
 #include <sstream>
 
 template <typename T>
