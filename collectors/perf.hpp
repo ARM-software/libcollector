@@ -81,7 +81,7 @@ public:
 
     ~event_context() {}
 
-    bool init(std::vector<struct event> &events, int tid, int cpu);
+    bool init(const std::vector<struct event> &events, const int tid, const int cpu);
     bool start();
     struct snapshot collect(int64_t now);
 
@@ -98,7 +98,7 @@ public:
     bool getEnablePerApi() { return mEnablePerapiPerf; };
     void setEnablePerApi() { mEnablePerapiPerf = true; };
 
-    inline void update_data(struct snapshot &snap, CollectorValueResults &result)
+    inline void update_data(const struct snapshot &snap, CollectorValueResults &result)
     {
         for (unsigned int i = 0; i < mCounters.size(); i++)
             result[mCounters[i].name].push_back(snap.values[i]);
@@ -184,10 +184,9 @@ private:
     bool mAllThread = true;
     bool mEnablePerapiPerf = false;
     uint8_t pmu_counter_bits;
-    std::vector<struct event> mEvents;
     std::vector<struct event> mBookerEvents;
-    std::map<int, std::vector<struct event>> mMultiPMUEvents;
-    std::map<int, std::vector<struct event>> mCSPMUEvents;
+    std::map<std::string, std::vector<struct event>> mEvents;
+    std::map<std::string, std::vector<struct event>> mCSPMUEvents;
     std::map<std::string, std::vector<struct timespec>> mClocks; // device_name -> clock_vector
     int last_collect_scope_flags = 0;
 
@@ -197,7 +196,7 @@ private:
 
     struct perf_thread
     {
-        perf_thread(const int tid, const std::string &name): tid(tid), name(name), eventCtx{} {}
+        perf_thread(const int tid, const std::string &name, const std::string &device_name=""): tid(tid), name(name), device_name(device_name), eventCtx{} {}
 
         void update_data(struct snapshot& snap)
         {
@@ -248,14 +247,13 @@ private:
 
         const int tid;
         const std::string name;
+        const std::string device_name;
         event_context eventCtx;
         CollectorValueResults mResultsPerThread;
-        std::string device_name;
     };
 
     std::vector<struct perf_thread> mReplayThreads;
     std::vector<struct perf_thread> mBgThreads;
     std::vector<struct perf_thread> mBookerThread;
-    std::vector<struct perf_thread> mMultiPMUThreads;
     std::vector<struct perf_thread> mCSPMUThreads;
 };

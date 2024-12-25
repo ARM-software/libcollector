@@ -286,7 +286,13 @@ public:
 			"perf": {
 				"set": 4,
 				"inherit": 0,
-				"type": 8
+				"events": [
+					{
+						"name": "CPUCycleCount",
+						"device": "armv8_pmuv3",
+						"config": 17
+					}
+				]
 			}
 		})";
 		Json::Value config;

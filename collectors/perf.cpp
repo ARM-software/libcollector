@@ -76,38 +76,36 @@ static inline uint64_t makeup_booker_ci_config(int nodetype, int eventid, int by
 
 PerfCollector::PerfCollector(const Json::Value& config, const std::string& name, bool enablePerapiPerf) : Collector(config, name), mEnablePerapiPerf(enablePerapiPerf)
 {
-
-    struct event leader;
     if (mEnablePerapiPerf)
     {
         volatile uint64_t pmcr_el0;
         asm volatile("mrs %0, PMCR_EL0" : "=r"(pmcr_el0));
         pmu_counter_bits = ((pmcr_el0 & 0x80) == 0x80 ? 64 : 32);
-        if (!mConfig.isMember("type")) exit(EXIT_FAILURE);
 
         DBG_LOG("pmu counter bits are: %u\n", pmu_counter_bits);
         DBG_LOG("pmcr_el0 is: %lu\n", pmcr_el0);
-
-        leader = {"CPUCycleCount", mConfig.get("type", PERF_TYPE_HARDWARE).asUInt(), 0x0011, false, false, pmu_counter_bits == 64 ? hw_cnt_length::b64 : hw_cnt_length::b32, false};
     }
-    else
-    {
-        leader = {"CPUCycleCount", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES};
-    }
+    struct event leader = {"CPUCycleCount", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, false, false, hw_cnt_length::b32};
+    bool leaderOnce = true;
 
     if (mEnablePerapiPerf) mAllThread = false;
     mSet = mConfig.get("set", -1).asInt();
-    mInherit = mConfig.get("inherit", 0).asInt();
+    mInherit = mConfig.get("inherit", 1).asInt();
 
     leader.inherited = mInherit;
     leader.cspmu = false;
-    mEvents.push_back(leader);
+    leader.device = "single";
 
     if ((0 <= mSet) && (mSet <= 3))
     {
         DBG_LOG("Using reserved CPU counter set number %d, this will fail on non-ARM CPU's except set 0.\n", mSet);
-        for (const struct event& e : EVENTS[mSet])
-            mEvents.push_back(e);
+        mEvents.emplace(leader.device, std::vector<event>{leader});
+        for (struct event& e : EVENTS[mSet])
+        {
+            e.device = leader.device;
+            e.inherited = mInherit;
+            mEvents[leader.device].push_back(e);
+        }
     }
     else if (mConfig.isMember("event"))
     {
@@ -120,7 +118,7 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name,
 
             if ( !item.isMember("name") || (!item.isMember("type")&&!item.isMember("device")) || !item.isMember("config") )
             {
-                DBG_LOG("perf event does not specify name, tpye or config, skip this event!\n");
+                DBG_LOG("perf event does not specify name, config, tpye or device, skip this event!\n");
                 continue;
             }
             e.name = item.get("name", "").asString();
@@ -133,7 +131,48 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name,
             e.device = item.get("device", "").asString();
             e.inherited = mInherit;
 
-            if (e.booker_ci)
+            if(e.device!="")
+            {   //for d9000, CPU cores on different PMU
+                e.config = item.get("config", 0).asUInt64();
+                auto type_string = e.device;
+
+                auto event_type_filename = "/sys/devices/" + type_string + "/type";
+
+                std::ifstream event_type(event_type_filename);
+                if (getline(event_type, type_string))
+                {
+                    DBG_LOG("Read event type %s from %s\n", type_string.c_str(), event_type_filename.c_str());
+                    e.type=atoi(type_string.c_str());
+                    if (e.cspmu)
+                    {
+                        e.name = e.device+"_"+e.name;
+                        if (mCSPMUEvents.count(e.device))
+                        {
+                            mCSPMUEvents[e.device].push_back(e);
+                        }
+                        else
+                        {
+                            mCSPMUEvents.emplace(e.device, std::vector<event>{e});
+                        }
+                    }
+                    else
+                    {
+                        if (mEvents.count(e.device))
+                        {
+                            mEvents[e.device].push_back(e);
+                        }
+                        else
+                        {
+                            mEvents.emplace(e.device, std::vector<event>{e});
+                        }
+                    }
+                }
+                else
+                {
+                    DBG_LOG("Error: wrong device name %s, could not find correspoding event type, event skipped\n", event_type_filename.c_str());
+                }
+            }
+            else if (e.booker_ci)
             {   // booker-ci counter
                 int eventid = item.get("config", 0).asInt();
                 std::string type = item.get("nodetype", " ").asString();
@@ -158,51 +197,17 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name,
                     mBookerEvents.push_back(e);
                 }
             }
-            else if(e.device!="")
-            {//for d9000, CPU cores on different PMU
-                e.config = item.get("config", 0).asUInt64();
-                auto type_string = e.device;
-
-                auto event_type_filename = "/sys/devices/" + type_string + "/type";
-
-                std::ifstream event_type(event_type_filename);
-                if (getline(event_type, type_string))
-                {
-                    DBG_LOG("Read event type %s from %s\n", type_string.c_str(), event_type_filename.c_str());
-                    e.type=atoi(type_string.c_str());
-                    if (e.cspmu)
-                    {
-                        e.name = e.device+"_"+e.name;
-                        if (mCSPMUEvents.count(e.type))
-                        {
-                            mCSPMUEvents[e.type].push_back(e);
-                        }
-                        else
-                        {
-                            mCSPMUEvents.emplace(e.type,std::vector<event>{e});
-                        }
-                    }
-                    else
-                    {
-                        if (mMultiPMUEvents.count(e.type))
-                        {
-                            mMultiPMUEvents[e.type].push_back(e);
-                        }
-                        else
-                        {
-                            mMultiPMUEvents.emplace(e.type,std::vector<event>{e});
-                        }
-                    }
-                }
-                else
-                {
-                    DBG_LOG("Error: wrong device name, could not find correspoding event type, event skipped\n");
-                }
-            }
             else
             {
+                if (leaderOnce)
+                {
+                    leader.len = e.len;
+                    mEvents.emplace(leader.device, std::vector<event>{leader});
+                    leaderOnce = false;
+                }
+                e.device = leader.device;
                 e.config = item.get("config", 0).asUInt64();
-                mEvents.push_back(e);
+                mEvents[e.device].push_back(e);
             }
         }
     }
@@ -249,48 +254,23 @@ static int add_event(const struct event &e, int tid, int cpu, int group = -1)
 
 bool PerfCollector::init()
 {
-    if (mEvents.size() == 0)
-    {
-        DBG_LOG("None perf event counter.\n");
-        return false;
-    }
-
     create_perf_thread();
-    int i=0;
     for (perf_thread& t : mReplayThreads)
     {
-        t.eventCtx.init(mEvents, t.tid, -1);
         if (mEnablePerapiPerf)
         {
             t.eventCtx.setEnablePerApi();
         }
-        for (auto& et : mMultiPMUEvents)
-        {
-            mMultiPMUThreads[i].eventCtx.init(et.second, mMultiPMUThreads[i].tid, -1);
-            if (mEnablePerapiPerf)
-            {
-                mMultiPMUThreads[i].eventCtx.setEnablePerApi();
-            }
-            i++;
-        }
+        t.eventCtx.init(mEvents[t.device_name], t.tid, -1);
     }
 
     for (perf_thread& t : mBgThreads)
     {
-        t.eventCtx.init(mEvents, t.tid, -1);
-        for (auto& et : mMultiPMUEvents)
-        {
-            mMultiPMUThreads[i].eventCtx.init(et.second, mMultiPMUThreads[i].tid, -1);
-            i++;
-        }
+        t.eventCtx.init(mEvents[t.device_name], t.tid, -1);
     }
 
-    int n = 0;
-    for (auto& iter : mCSPMUEvents)
-    {
-        mCSPMUThreads[n].eventCtx.init(iter.second, -1, 0);
-        n++;
-    }
+    for (perf_thread& t: mCSPMUThreads)
+        t.eventCtx.init(mCSPMUEvents[t.device_name], -1, 0);
 
     for (perf_thread& t : mBookerThread)
         t.eventCtx.init(mBookerEvents, -1, 0);
@@ -312,12 +292,6 @@ bool PerfCollector::deinit()
         t.clear();
     }
 
-    for (perf_thread& t : mMultiPMUThreads)
-    {
-        t.eventCtx.deinit();
-        t.clear();
-    }
-
     for (perf_thread& t : mBookerThread)
     {
         t.eventCtx.deinit();
@@ -330,14 +304,14 @@ bool PerfCollector::deinit()
         t.clear();
     }
 
-    mEvents.clear();
     mBookerEvents.clear();
-    for (auto& et : mMultiPMUEvents) et.second.clear();
+    for (auto& et : mEvents) et.second.clear();
     for (auto& et : mCSPMUEvents) et.second.clear();
+    mEvents.clear();
+    mCSPMUEvents.clear();
 
     mReplayThreads.clear();
     mBgThreads.clear();
-    mMultiPMUThreads.clear();
     mBookerThread.clear();
     mCSPMUThreads.clear();
     mClocks.clear();
@@ -360,20 +334,16 @@ bool PerfCollector::start()
         if (!t.eventCtx.start())
             return false;
 
-    for (perf_thread& t : mMultiPMUThreads)
-        if (!t.eventCtx.start())
-            return false;
-
     for (perf_thread& t: mBookerThread)
         if (!t.eventCtx.start())
             return false;
 
     for (perf_thread& t: mCSPMUThreads)
-        {
-            if (!t.eventCtx.start())
-                return false;
-            mClocks.emplace(t.device_name, std::vector<timespec>{});
-        }
+    {
+        if (!t.eventCtx.start())
+            return false;
+        mClocks.emplace(t.device_name, std::vector<timespec>{});
+    }
     mCollecting = true;
     return true;
 }
@@ -399,11 +369,6 @@ bool PerfCollector::stop()
     }
 
     for (perf_thread& t : mBgThreads)
-    {
-       t.eventCtx.stop();
-    }
-
-    for (perf_thread& t : mMultiPMUThreads)
     {
        t.eventCtx.stop();
     }
@@ -435,12 +400,6 @@ bool PerfCollector::collect(int64_t now)
     }
 
     for (perf_thread& t : mBgThreads)
-    {
-        snap = t.eventCtx.collect(now);
-        t.update_data(snap);
-    }
-
-    for (perf_thread& t : mMultiPMUThreads)
     {
         snap = t.eventCtx.collect(now);
         t.update_data(snap);
@@ -479,8 +438,7 @@ bool PerfCollector::collect_scope_start(uint16_t func_id, int32_t flags, int tid
     {
         for (auto &thread: mReplayThreads)
         {
-            size_t start_pos = thread.name.find('-') + 1;
-            if (std::stoi(thread.name.substr(start_pos, thread.name.length() - start_pos)) == tid)
+            if (thread.tid == tid)
             {
                 thread.eventCtx.collect_scope(func_id, false, get_pmu_bits());    
             }
@@ -501,8 +459,7 @@ bool PerfCollector::collect_scope_stop(uint16_t func_id, int32_t flags, int tid)
     {
         for (auto &thread: mReplayThreads)
         {
-            size_t start_pos = thread.name.find('-') + 1;
-            if (std::stoi(thread.name.substr(start_pos, thread.name.length() - start_pos)) == tid)
+            if (thread.tid == tid)
             {
                 snap_start = thread.eventCtx.last_snap;
                 snap_stop = thread.eventCtx.collect_scope(func_id, true, get_pmu_bits());
@@ -522,24 +479,21 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
 
     Json::Value replayValue;
     replayValue["CCthread"] = "replayMainThreads";
-    int i=0;
     for (perf_thread& t : mReplayThreads)
     {
         Json::Value perf_threadValue;
         perf_threadValue["CCthread"] = t.name.c_str();
+        if (strcmp(t.device_name.c_str(), "single")) // excluding the default "single" since it's a fake deviceName
+            perf_threadValue["device"] = t.device_name.c_str();
         t.postprocess(perf_threadValue);
         t.postprocess(replayValue);
-        for (unsigned int j =0; j<mMultiPMUEvents.size();j++)
-        {
-            mMultiPMUThreads[i].postprocess(replayValue);
-            i++;
-        }
         mCustomResult["thread_data"].append(perf_threadValue);
     }
     for (perf_thread& t : mCSPMUThreads)
     {
         Json::Value perf_threadValue;
         perf_threadValue["CCthread"] = t.name.c_str();
+        perf_threadValue["device"] = t.device_name.c_str();
         t.postprocess(perf_threadValue);
         t.postprocess(replayValue);
         std::string sec_name = t.device_name + "_sec";
@@ -579,15 +533,11 @@ bool PerfCollector::postprocess(const std::vector<int64_t>& timing)
         {
             Json::Value perf_threadValue;
             perf_threadValue["CCthread"] = t.name.c_str();
+            if (strcmp(t.device_name.c_str(), "single"))
+                perf_threadValue["device"] = t.device_name.c_str();
             t.postprocess(perf_threadValue);
             t.postprocess(bgValue);
             t.postprocess(allValue);
-            for (unsigned int j =0; j<mMultiPMUEvents.size();j++)
-            {
-                mMultiPMUThreads[i].postprocess(bgValue);
-                mMultiPMUThreads[i].postprocess(allValue);
-                i++;
-            }
             mCustomResult["thread_data"].append(perf_threadValue);
         }
 
@@ -612,11 +562,6 @@ void PerfCollector::summarize()
         t.summarize();
     }
 
-    for (perf_thread& t : mMultiPMUThreads)
-    {
-        t.summarize();
-    }
-
     for (perf_thread& t : mBookerThread)
     {
         t.summarize();
@@ -628,7 +573,7 @@ void PerfCollector::summarize()
     }
 }
 
-bool event_context::init(std::vector<struct event> &events, int tid, int cpu)
+bool event_context::init(const std::vector<struct event> &events, int tid, int cpu)
 {
     struct counter grp;
     grp.name = "CPUCycleCount";
@@ -685,11 +630,16 @@ bool event_context::start()
 
     if (getEnablePerApi())
     {
-        volatile uint64_t pmuserenr_el0 = 0;
-        asm volatile("mrs %0, PMUSERENR_EL0" : "=r"(pmuserenr_el0));
-        if ((pmuserenr_el0 & (CINSTRP_ARMV8_PMCR_E | CINSTRP_ARMV8_PMCR_C | CINSTRP_ARMV8_PMCR_R)) != (CINSTRP_ARMV8_PMCR_E | CINSTRP_ARMV8_PMCR_C | CINSTRP_ARMV8_PMCR_R))
+#if defined(__aarch64__)
+        volatile uint64_t el0_access = 0;
+        asm volatile("mrs %0, PMUSERENR_EL0" : "=r"(el0_access));
+#elif defined(__arm__)
+        volatile uint32_t el0_access = 0;
+        asm volatile("mrc p15, 0, %0, c9, c14, 0" : "=r"(el0_access));
+#endif
+        if ((el0_access & (CINSTRP_ARMV8_PMCR_E | CINSTRP_ARMV8_PMCR_C | CINSTRP_ARMV8_PMCR_R)) != (CINSTRP_ARMV8_PMCR_E | CINSTRP_ARMV8_PMCR_C | CINSTRP_ARMV8_PMCR_R))
         {
-            DBG_LOG("EL0 access to PMU is required! Please set the appropriate bits in PMUSERENR_EL0. Current settings: %08x\n", (uint32_t)pmuserenr_el0);
+            DBG_LOG("EL0 access to PMU is required! Please set the appropriate bits in PMUSERENR_EL0. Current settings: %08x\n", (uint32_t)el0_access);
             exit(EXIT_FAILURE);
         }
     }
@@ -749,6 +699,7 @@ struct snapshot event_context::collect_scope(uint16_t func_id, bool stopping, ui
         exit(EXIT_FAILURE);
     }
     struct snapshot snap;
+#if defined(__aarch64__)
     if (pmu_bits == 32)
     {
         asm volatile("mrs %0, PMCCNTR_EL0" : "=r"(snap.values[0]));
@@ -757,6 +708,11 @@ struct snapshot event_context::collect_scope(uint16_t func_id, bool stopping, ui
     {
         asm volatile("mrs %0, PMEVCNTR2_EL0" : "=r"(snap.values[0]));
     }
+#elif defined(__arm__)
+    volatile uint32_t PMCCNTR_EL0_lo, PMCCNTR_EL0_hi;
+    asm volatile("mrrc p15, 0, %0, %1, c9" : "=r"(PMCCNTR_EL0_lo), "=r"(PMCCNTR_EL0_hi));
+    snap.values[0] = (((uint64_t)PMCCNTR_EL0_hi) << 32) | ((uint64_t)PMCCNTR_EL0_lo);
+#endif
     if (stopping) {
         last_snap_func_id = -1;
     } else {
@@ -790,12 +746,9 @@ void PerfCollector::create_perf_thread()
 
     if(!mCSPMUEvents.empty())
     {
-        int i=0;
-        for (auto pair : mCSPMUEvents)
+        for (const auto &pair : mCSPMUEvents)
         {
-            mCSPMUThreads.emplace_back(getpid(), current_pName);
-            mCSPMUThreads[i].device_name = pair.second[0].device;
-            i++;
+            mCSPMUThreads.emplace_back(getpid(), current_pName, pair.first);
         }
         return;
     }
@@ -813,19 +766,14 @@ void PerfCollector::create_perf_thread()
             std::string thread_name = getThreadName(tid);
             if (!strncmp(thread_name.c_str(), "patrace-", 8))
             {
-                mReplayThreads.emplace_back(tid, thread_name);
                 //each group of MultiPMUEvents have a thread
-                for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
+                for (const auto &pair : mEvents)
+                    mReplayThreads.emplace_back(tid, thread_name, pair.first);
             }
-            if (mAllThread && !strncmp(thread_name.c_str(), "mali-", 5))
+            if (mAllThread && (!strncmp(thread_name.c_str(), "mali-", 5) || !strncmp(thread_name.c_str(), "ANGLE-", 6)))
             {
-                mBgThreads.emplace_back(tid, thread_name);
-                for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
-            }
-            if (mAllThread && !strncmp(thread_name.c_str(), "ANGLE-", 6))
-            {
-                mBgThreads.emplace_back(tid, thread_name);
-                for (unsigned int i =0; i<mMultiPMUEvents.size();i++) mMultiPMUThreads.emplace_back(tid, thread_name);
+                for (const auto &pair : mEvents)
+                    mBgThreads.emplace_back(tid, thread_name, pair.first);
             }
         }
     }
