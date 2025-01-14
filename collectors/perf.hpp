@@ -1,11 +1,13 @@
 #pragma once
 
 #include "collector_utility.hpp"
-#include "interface.hpp"
+// #include "interface.hpp"
 #include <map>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <fstream>
+#include <dirent.h>
 
 enum hw_cnt_length
 {
@@ -50,8 +52,8 @@ enum collect_scope_flags: int32_t
 struct snapshot {
     snapshot() : size(0) {}
 
-    uint64_t size;
-    long long values[8] = {0};
+    unsigned long size;
+    unsigned long values[8] = {0};
 };
 
 struct event {
@@ -72,6 +74,7 @@ class event_context
 public:
     event_context()
     {
+        mEnablePerapiPerf = false;
         group = -1;
         last_snap_func_id = -1;
     }
@@ -82,14 +85,18 @@ public:
     bool start();
     struct snapshot collect(int64_t now);
 
-    struct snapshot collect_scope(int64_t now, uint16_t func_id, bool stopping);
+    struct snapshot collect_scope(uint16_t func_id, bool stopping, uint8_t pmu_bits);
 
     // If not -1, then we are in the middle of collect_scope_start/stop.
     uint16_t last_snap_func_id;
     struct snapshot last_snap;
+    int group_core;
 
     bool stop();
     bool deinit();
+    int getGroup() { return group; };
+    bool getEnablePerApi() { return mEnablePerapiPerf; };
+    void setEnablePerApi() { mEnablePerapiPerf = true; };
 
     inline void update_data(const struct snapshot &snap, CollectorValueResults &result)
     {
@@ -97,26 +104,24 @@ public:
             result[mCounters[i].name].push_back(snap.values[i]);
     }
 
-    inline void update_data_scope(uint16_t func_id, bool is_calling, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
+    inline void update_data_scope(uint16_t func_id, struct snapshot &snap_start, struct snapshot &snap_end, CollectorValueResults &result)
     {
         if (!mValueResults) mValueResults = &result;
-        long long diff_acc = 0;
+        uint64_t diff_acc = 0;
         for (unsigned int i = 0; i < mCounters.size(); i++) {
-            long long diff = snap_end.values[i] - snap_start.values[i];
+            uint64_t diff = snap_end.values[i] - snap_start.values[i];
             if (mCounters[i].scope_values.size() <= func_id) {
                 mCounters[i].scope_values.resize(std::min(func_id * 2 + 1, UINT16_MAX - 1), 0);
             }
             mCounters[i].scope_values[func_id] += diff;
             diff_acc += diff;
         }
-        if (diff_acc > 0 && is_calling) {
+        if (diff_acc > 0) {
             if (scope_num_calls.size() <= func_id) {
                 scope_num_calls.resize(std::min(func_id * 2 + 1, UINT16_MAX - 1), 0);
             }
             scope_num_calls[func_id]++;
-        }
-        if (diff_acc > 0) {
-            if (scope_num_with_perf.size() <= func_id) {
+             if (scope_num_with_perf.size() <= func_id) {
                 scope_num_with_perf.resize(std::min(func_id * 2 + 1, UINT16_MAX - 1), 0);
             }
             scope_num_with_perf[func_id]++;
@@ -129,7 +134,7 @@ private:
         std::string name;
         int fd;
         // Record accumulated values for update_data_scope, where the index of the vector is the uint16_t func_id.
-        std::vector<long long> scope_values;
+        std::vector<unsigned long> scope_values;
 
         counter() {
             scope_values.reserve(512);
@@ -144,12 +149,13 @@ private:
     // Record number of scope calls that actually triggered the collect_scope (happen in 1 thread that calls the collection method)
     std::vector<int32_t> scope_num_calls;
     CollectorValueResults *mValueResults = nullptr;
+    bool mEnablePerapiPerf;
 };
 
 class PerfCollector : public Collector
 {
 public:
-    PerfCollector(const Json::Value& config, const std::string& name);
+    PerfCollector(const Json::Value& config, const std::string& name, bool enablePerapiPerf = false);
 
     virtual bool init() override;
     virtual bool deinit() override;
@@ -162,11 +168,11 @@ public:
     virtual bool postprocess(const std::vector<int64_t>& timing) override;
     virtual void summarize() override;
 
+    uint8_t get_pmu_bits() { return pmu_counter_bits; }
+
     /// Collector functions for perapi perf instrumentations.
-    virtual bool collect_scope_start(int64_t now, uint16_t func_id, int32_t flags) override;
-    virtual bool collect_scope_stop(int64_t now, uint16_t func_id, int32_t flags) override;
-    bool perf_counter_pause();
-    bool perf_counter_resume();
+    virtual bool collect_scope_start(uint16_t func_id, int32_t flags, int tid) override;
+    virtual bool collect_scope_stop(uint16_t func_id, int32_t flags, int tid) override;
 
   private:
     void create_perf_thread();
@@ -176,6 +182,8 @@ private:
     int mSet = -1;
     int mInherit = 1;
     bool mAllThread = true;
+    bool mEnablePerapiPerf = false;
+    uint8_t pmu_counter_bits;
     std::vector<struct event> mBookerEvents;
     std::map<std::string, std::vector<struct event>> mEvents;
     std::map<std::string, std::vector<struct event>> mCSPMUEvents;
@@ -197,8 +205,7 @@ private:
 
         void update_data_scope(uint16_t func_id, struct snapshot& snap_start, struct snapshot& snap_end)
         {
-            pid_t cur_tid = syscall(SYS_gettid);
-            eventCtx.update_data_scope(func_id, cur_tid == tid, snap_start, snap_end, mResultsPerThread);
+            eventCtx.update_data_scope(func_id, snap_start, snap_end, mResultsPerThread);
         }
 
         void clear()
@@ -217,16 +224,16 @@ private:
                 v[pair.first] = Json::arrayValue;
 
                 unsigned int index = 0;
-                int64_t total = 0;
+                uint64_t total = 0;
                 for (const CollectorValue& cv : pair.second.data())
                 {
-                    int64_t s = cv.i64;
-                    if (need_sum) s += value[pair.first][index++].asInt64();
-                    v[pair.first].append((Json::Value::Int64)s);
+                    uint64_t s = cv.u64;
+                    if (need_sum) s += value[pair.first][index++].asUInt64();
+                    v[pair.first].append((Json::Value::UInt64)s);
                     total += s;
                 }
                 value[pair.first] = v[pair.first];
-                value["SUM"][pair.first] = (Json::Value::Int64)total;
+                value["SUM"][pair.first] = (Json::Value::UInt64)total;
             }
         }
 
