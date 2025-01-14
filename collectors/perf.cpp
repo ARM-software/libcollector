@@ -80,7 +80,7 @@ mEnablePerapiPerf = enablePerapiPerf;
 // libcollector doesn't support any per api function on ANDROID platforms. 
 #if defined(ANDROID) || defined(__ANDROID__)
     mEnablePerapiPerf = false;
-#elif defined(__aarch64__) || defined(__arm__)
+#elif defined(__aarch64__)
     if (mEnablePerapiPerf)
     {
         volatile uint64_t pmcr_el0;
@@ -88,6 +88,15 @@ mEnablePerapiPerf = enablePerapiPerf;
         pmu_counter_bits = ((pmcr_el0 & 0x80) == 0x80 ? 64 : 32);
         DBG_LOG("pmu counter bits are: %u\n", pmu_counter_bits);
         DBG_LOG("pmcr_el0 is: %lu\n", pmcr_el0);
+    }
+#elif defined(__arm__)
+    if (mEnablePerapiPerf)
+    {
+        volatile uint32_t pmcr_el0;
+        asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(pmcr_el0));
+        pmu_counter_bits = ((pmcr_el0 & 0x80) == 0x80 ? 64 : 32);
+        DBG_LOG("pmu counter bits are: %u\n", pmu_counter_bits);
+        DBG_LOG("pmcr_el0 is: %u\n", pmcr_el0);
     }
 #endif
     struct event leader = {"CPUCycleCount", PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, false, false, hw_cnt_length::b32};
@@ -130,6 +139,11 @@ mEnablePerapiPerf = enablePerapiPerf;
             e.exc_user = item.get("excludeUser", false).asBool();
             e.exc_kernel = item.get("excludeKernel", false).asBool();
             e.len = (item.get("counterLen64bit", 0).asInt() == 0) ? hw_cnt_length::b32 : hw_cnt_length::b64;
+            if ((e.len == hw_cnt_length::b32 && pmu_counter_bits != 32u) || (e.len == hw_cnt_length::b64 && pmu_counter_bits != 64u))
+            {
+                DBG_LOG("perf event has a incorrent counter lenght config, skip this event!\n");
+                continue;
+            }
             e.booker_ci = item.get("booker-ci", 0).asInt();
             e.cspmu = item.get("CSPMU", 0).asInt();
             e.device = item.get("device", "").asString();
@@ -713,6 +727,10 @@ struct snapshot event_context::collect_scope(uint16_t func_id, bool stopping, ui
     {
         asm volatile("mrs %0, PMEVCNTR2_EL0" : "=r"(snap.values[0]));
     }
+#elif defined(__arm__) && !defined(ANDROID) && !defined(__ANDROID__)
+    volatile uint32_t PMCCNTR_EL0_lo, PMCCNTR_EL0_hi;
+    asm volatile("mrrc p15, 0, %0, %1, c9" : "=r"(PMCCNTR_EL0_lo), "=r"(PMCCNTR_EL0_hi));
+    snap.values[0] = (((uint64_t)PMCCNTR_EL0_hi) << 32) | ((uint64_t)PMCCNTR_EL0_lo);
 #else
     if (read(group, &snap, sizeof(snap)) == -1) perror("read");
 #endif
