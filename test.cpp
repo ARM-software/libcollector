@@ -264,108 +264,90 @@ static void test7()
 	c.writeCSV("excel.csv");
 }
 
-class Test8 {
+class Test8
+{
 public:
+	Test8() : test8_ready(false) {}
 
-  Test8() : test8_ready(false) {}
-
-  ~Test8() {
-	  delete c;
-  }
-
-  void run() {
-      printf("[test 8]: Testing collect_scope for the perf collector...\n");
-      std::vector<std::thread> threads;
-
-      // Specification:
-      // https://github.com/ARM-software/patrace/blob/master/patrace/doc/manual.md#generating-cpu-load-with-perf-collector
-      std::string collectorConfig = R"(
+	~Test8()
 	{
-		"perf": {
-			"set": 4,
-			"event": [
-				{
-					"name": "CPUCyclesUser",
-					"type": 4,
-					"config": 17,
-					"excludeKernel": true
-				},
-				{
-					"name": "CPUCyclesKernel",
-					"type": 4,
-					"config": 17,
-					"excludeUser": true
-				},
-				{
-					"name": "CPUInstructionUser",
-					"type": 4,
-					"config": 8,
-					"excludeKernel": true
-				},
-				{
-					"name": "CPUInstructionKernel",
-					"type": 4,
-					"config": 8,
-					"excludeUser": true
-				}
-			],
-		}
-	})";
-      Json::Value config;
-      std::stringstream(collectorConfig) >> config;
+		delete c;
+	}
 
-      threads.emplace_back(&Test8::test8_worker, this, "patrace-1", 1000, 0);
-      threads.emplace_back(&Test8::test8_worker, this, "patrace-2", 1000, 1);
-      threads.emplace_back(&Test8::test8_worker, this, "mali-1", 100, 2);
-      threads.emplace_back(&Test8::test8_worker, this, "mali-2", 100, 3);
+	void run()
+	{
+		printf("[test 8]: Testing collect_scope for the perf collector...\n");
+		std::vector<std::thread> threads;
 
-      c = new Collection(config);
-      c->initialize();
-      c->start();
-      test8_ready.store(true);
-      test8_cv.notify_all();
-      for (auto &t : threads)
-          t.join();
-      c->stop();
+		// Specification:
+		// https://github.com/ARM-software/patrace/blob/master/patrace/doc/manual.md#generating-cpu-load-with-perf-collector
+		std::string collectorConfig = R"(
+		{
+			"perf": {
+				"set": 4,
+				"inherit": 0,
+				"events": [
+					{
+						"name": "CPUCycleCount",
+						"device": "armv8_pmuv3",
+						"counterLen64bit": 1,
+						"config": 17
+					}
+				]
+			}
+		})";
+		Json::Value config;
+		std::stringstream(collectorConfig) >> config;
 
-      Json::Value results = c->results();
-      Json::StyledWriter writer;
-      std::string data = writer.write(results);
-      printf("Results:\n%s", data.c_str());
-      c->writeJSON("results_collect_scope.json");
-  }
+		threads.emplace_back(&Test8::test8_worker, this, "patrace-1", 1000, 0);
+		threads.emplace_back(&Test8::test8_worker, this, "patrace-2", 1000, 1);
+
+		c = new Collection(config, true);
+		c->initialize();
+		c->start();
+		test8_ready.store(true);
+		test8_cv.notify_all();
+		for (auto &t : threads)
+			t.join();
+		c->stop();
+
+		Json::Value results = c->results();
+		Json::StyledWriter writer;
+		std::string data = writer.write(results);
+		printf("Results:\n%s", data.c_str());
+		c->writeJSON("results_collect_scope.json");
+	}
 
 private:
-  void test8_worker(std::string const &thread_name, int ops, int scope_label_offset) {
-      prctl(PR_SET_NAME, (unsigned long)thread_name.c_str(), 0, 0, 0);
-      std::unique_lock<std::mutex> lk(test8_mtx);
-      test8_cv.wait(lk, [this] { return test8_ready.load(); });
-      printf("Thread %s started.\n", thread_name.c_str());
+	void test8_worker(std::string const &thread_name, int ops, int scope_label_offset)
+	{
+		prctl(PR_SET_NAME, (unsigned long)thread_name.c_str(), 0, 0, 0);
+		std::unique_lock<std::mutex> lk(test8_mtx);
+		test8_cv.wait(lk, [this]
+					  { return test8_ready.load(); });
+		printf("Thread %s started.\n", thread_name.c_str());
 
-      auto payload = [](int ops) {
-          int tmp = 1;
-          for (int i = 0; i < ops; i++)
-              tmp *= rand();
-      };
+		auto payload = [](int ops)
+		{
+			int tmp = 1;
+			for (int i = 0; i < ops; i++)
+				tmp *= rand();
+		};
 
-      if (strncmp(thread_name.c_str(), "patrace", 7) == 0) {
-          c->collect_scope_start(0 + scope_label_offset, COLLECT_REPLAY_THREADS);
-          payload(1000);
-          c->collect_scope_stop(0 + scope_label_offset, COLLECT_REPLAY_THREADS);
-      }
+		if (strncmp(thread_name.c_str(), "patrace", 7) == 0)
+		{
+			c->collect_scope_start(0 + scope_label_offset, COLLECT_REPLAY_THREADS, scope_label_offset + 1);
+			payload(1000);
+			c->collect_scope_stop(0 + scope_label_offset, COLLECT_REPLAY_THREADS, scope_label_offset + 1);
+		}
 
-      if (strncmp(thread_name.c_str(), "mali", 4) == 0) {
-          c->collect_scope_start(1 + scope_label_offset, COLLECT_BG_THREADS);
-          payload(1000);
-          c->collect_scope_stop(1 + scope_label_offset, COLLECT_BG_THREADS);
-      }
-      printf("Thread %s finished.\n", thread_name.c_str());
-  }
+		printf("Thread %s finished.\n", thread_name.c_str());
+	}
 
-  Collection *c;
-  std::atomic<bool> test8_ready;
-  std::condition_variable test8_cv;
-  std::mutex test8_mtx;
+	Collection *c;
+	std::atomic<bool> test8_ready;
+	std::condition_variable test8_cv;
+	std::mutex test8_mtx;
 };
 
 int main()

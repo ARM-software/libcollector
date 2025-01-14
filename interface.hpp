@@ -2,7 +2,6 @@
 
 #include <assert.h>
 #include <vector>
-#include <string>
 #include <cmath>
 #include <map>
 #include <stdint.h>
@@ -90,8 +89,8 @@ public:
     virtual bool stop() { mCollecting = false; return true; }
     virtual bool postprocess(const std::vector<int64_t>& timing);
     virtual bool collect( int64_t ) = 0;
-    virtual bool collect_scope_start( int64_t now, uint16_t func_id, int flags ) {return true; };
-    virtual bool collect_scope_stop( int64_t now, uint16_t func_id, int flags ) { return true; };
+    virtual bool collect_scope_start( uint16_t func_id, int flags, int tid) {return true; };
+    virtual bool collect_scope_stop( uint16_t func_id, int flags, int tid) { return true; };
     virtual bool collecting() const { return mCollecting; }
     virtual const std::string& name() const { return mName; }
     virtual bool available() = 0;
@@ -187,8 +186,8 @@ private:
 class Collection
 {
 public:
-    Collection(const std::string& config_str);
-    Collection(const Json::Value& config);
+    Collection(const std::string& config_str, bool enablePerapiPerf = false);
+    Collection(const Json::Value& config, bool enablePerapiPerf = false);
     ~Collection();
 
     /// Return a list of functional collectors for this platform.
@@ -256,11 +255,11 @@ public:
 
     /// Sample periodical data for per API instrumentation. Call this method before the payload
     /// execution. Currently only used for perf collector.
-    void collect_scope_start(uint16_t label, int32_t flags);
+    void collect_scope_start(uint16_t label, int32_t flags, int tid);
 
     /// Sample periodical data for per API instrumentation. Call this method after the payload
     /// execution. Currently only used for perf collector.
-    void collect_scope_stop(uint16_t label, int32_t flags);
+    void collect_scope_stop(uint16_t label, int32_t flags, int tid);
 
     /// Get the results as JSON
     Json::Value results();
@@ -271,6 +270,7 @@ private:
     void init_from_json(const Json::Value& config);
 
     bool running = false;
+    bool mEnablePerapiPerf = false;
     Json::Value mConfig;
     std::vector<Collector*> mCollectors;
     std::vector<Collector*> mRunning;
