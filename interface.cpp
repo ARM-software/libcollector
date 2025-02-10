@@ -257,8 +257,6 @@ void Collection::init_from_json(const Json::Value& config)
         mCollectors.push_back(new FerretCollector(config, "ferret"));
         mCollectors.push_back(new ProcFSStatCollector(config, "procfs"));
         mCollectors.push_back(new MaliCounterCollector(config, "malicounters"));
-        // Various specializations
-        mCollectorMap["battery_temperature"]->doubleTransform(0.1); // divide by 10 and store as float
     }
 #endif
     if (!mEnablePerapiPerf)
@@ -273,6 +271,10 @@ void Collection::init_from_json(const Json::Value& config)
         }
         mCollectorMap[c->name()] = c;
     }
+
+    // Various specializations
+    if (!mEnablePerapiPerf)
+       mCollectorMap["battery_temperature"]->doubleTransform(0.1); // divide by 10 and store as float
 }
 
 Collection::~Collection()
