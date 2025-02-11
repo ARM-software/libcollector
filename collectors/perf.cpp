@@ -76,7 +76,7 @@ static inline uint64_t makeup_booker_ci_config(int nodetype, int eventid, int by
 
 PerfCollector::PerfCollector(const Json::Value& config, const std::string& name, bool enablePerapiPerf) : Collector(config, name)
 {
-mEnablePerapiPerf = enablePerapiPerf;
+    mEnablePerapiPerf = enablePerapiPerf;
 // libcollector doesn't support any per api function on ANDROID platforms. 
 #if defined(ANDROID) || defined(__ANDROID__)
     mEnablePerapiPerf = false;
@@ -139,10 +139,14 @@ mEnablePerapiPerf = enablePerapiPerf;
             e.exc_user = item.get("excludeUser", false).asBool();
             e.exc_kernel = item.get("excludeKernel", false).asBool();
             e.len = (item.get("counterLen64bit", 0).asInt() == 0) ? hw_cnt_length::b32 : hw_cnt_length::b64;
-            if ((e.len == hw_cnt_length::b32 && pmu_counter_bits != 32u) || (e.len == hw_cnt_length::b64 && pmu_counter_bits != 64u))
+            if (mEnablePerapiPerf)
             {
-                DBG_LOG("perf event has a incorrent counter lenght config, skip this event!\n");
-                continue;
+                // since accessing the difference registers directly, so that it needs to match the correct counter_bit
+                if ((e.len == hw_cnt_length::b32 && pmu_counter_bits != 32u) || (e.len == hw_cnt_length::b64 && pmu_counter_bits != 64u))
+                {
+                    DBG_LOG("perf event has a incorrent counter lenght config, skip this event!\n");
+                    continue;
+                }
             }
             e.booker_ci = item.get("booker-ci", 0).asInt();
             e.cspmu = item.get("CSPMU", 0).asInt();
