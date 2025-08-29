@@ -112,8 +112,8 @@ static bool searchMemoryAreaForKeyword(const char* data, size_t dataLen, const s
     const int n = dataLen;
 
     // Generate bad-character shift table
-    int ASIZE = UCHAR_MAX+1; // Alphabet size
-    int bmBc[ASIZE];
+    const int ASIZE = UCHAR_MAX+1; // Alphabet size
+    std::vector<int> bmBc(ASIZE);
 
     for (int i = 0; i < ASIZE; ++i)
         bmBc[i] = m;

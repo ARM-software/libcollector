@@ -193,7 +193,7 @@ bool PowerDaemon::start(const Json::Value& config_root)
 
     Json::Value config = config_root["rails"];
 
-    uint32_t numRails = uint32_t(config.size());
+    const uint32_t numRails = uint32_t(config.size());
     uint32_t d = htonl(numRails);
     DBG_LOG("Sending rail configuration for %d rails\n", numRails);
     if (write(mSocketFD, &d, sizeof(d)) != sizeof(d))
@@ -292,8 +292,8 @@ bool PowerDaemon::stop(const std::vector<int64_t>& timing, CollectorValueResults
         DBG_LOG("Rail %d resistor coefficient = %3.3f\n", i, railResistorCoefficients[i]);
     }
 
-    unsigned int totalSamples = numBytes / sizeof(float64);
-    unsigned int numRails = railResistorCoefficients.size();
+    const unsigned totalSamples = numBytes / sizeof(float64);
+    const unsigned numRails = railResistorCoefficients.size();
 
     DBG_LOG("Got %u bytes of data (%u samples or %3.3f s) from the daemon.\n", numBytes,
             totalSamples, (float)totalSamples / (10000 * 2 * numRails));
@@ -308,12 +308,9 @@ bool PowerDaemon::stop(const std::vector<int64_t>& timing, CollectorValueResults
 
     unsigned int currentTime = 0; // unit = one sample (100 us)
 
-    long long accountedv[numRails];
-    long long accountedi[numRails];
-    long long accountedp[numRails];
-    memset(accountedv, 0x00, sizeof(accountedv));
-    memset(accountedi, 0x00, sizeof(accountedi));
-    memset(accountedp, 0x00, sizeof(accountedp));
+    std::vector<int64_t> accountedv(numRails);
+    std::vector<int64_t> accountedi(numRails);
+    std::vector<int64_t> accountedp(numRails);
     unsigned int accountedSamples = 0;
 
     double nextFrameEndTime = 0;
@@ -322,12 +319,9 @@ bool PowerDaemon::stop(const std::vector<int64_t>& timing, CollectorValueResults
         nextFrameEndTime += i;
         unsigned int nextFrameEndTimeInSamples = (unsigned int)(nextFrameEndTime * 10000);
         unsigned int samples = 0;
-        int64_t framev[numRails];
-        int64_t framei[numRails];
-        int64_t framep[numRails];
-        memset(framev, 0x00, sizeof(framev));
-        memset(framei, 0x00, sizeof(framei));
-        memset(framep, 0x00, sizeof(framep));
+        std::vector<int64_t> framev(numRails);
+        std::vector<int64_t> framei(numRails);
+        std::vector<int64_t> framep(numRails);
 
         while (currentTime < nextFrameEndTimeInSamples)
         {
@@ -384,6 +378,8 @@ bool PowerDaemon::stop(const std::vector<int64_t>& timing, CollectorValueResults
             TraceExecutor::addResult(mResultNames[2][i].c_str(), avgp * 1000.0f);
         }
     }
+#else
+    (void)accountedSamples; // silence compiler
 #endif
 
     DBG_LOG("%d extra samples (%3.3f s) of power data.\n", totalSamples / (2 * numRails) - currentTime,

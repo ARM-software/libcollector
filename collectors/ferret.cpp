@@ -1371,7 +1371,6 @@ Json::Value postprocess_ferret_data(const std::string& outputFname, const std::v
     double max_active = 0.0;
     double max_duration = 0.0;
     double mcycle_sum = 0.0;
-    int sample_index = 0;
     int max_index = 0;
 
     for ( auto& pid_pair : pidHistory )
@@ -1406,8 +1405,6 @@ Json::Value postprocess_ferret_data(const std::string& outputFname, const std::v
 
             skipped += 1;
         }
-
-        sample_index += 1;
     }
 
     results["main_thread_index"] = max_index;

@@ -1,11 +1,11 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 30
 
     defaultConfig {
         minSdkVersion 15
-        targetSdkVersion 28
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
         externalNativeBuild {
@@ -25,7 +25,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_TOOLCHAIN=clang",
-                            "-DANDROID_PLATFORM=android-28",
+                            "-DANDROID_PLATFORM=android-30",
                             "-DCMAKE_BUILD_TYPE=Debug"
                 }
             }
@@ -35,7 +35,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_TOOLCHAIN=clang",
-                            "-DANDROID_PLATFORM=android-28",
+                            "-DANDROID_PLATFORM=android-30",
                             "-DCMAKE_BUILD_TYPE=Release"
                 }
             }
