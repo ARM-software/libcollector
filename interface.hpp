@@ -282,7 +282,5 @@ private:
     std::vector<std::string> mCustomHeaders;
     int64_t mStartTime = 0;
     int64_t mPreviousTime = 0;
-    bool mScopeStarted = false;
-    int64_t mScopeStartTime = 0;
     bool mDebug = false;
 };

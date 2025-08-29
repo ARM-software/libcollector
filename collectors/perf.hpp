@@ -190,10 +190,7 @@ private:
     std::map<std::string, std::vector<struct event>> mCSPMUEvents;
     std::map<std::string, std::vector<struct timespec>> mClocks; // device_name -> clock_vector
     int last_collect_scope_flags = 0;
-
     bool attempt_collect_scope_x64 = false;
-    uint64_t PMCNTENSET_EL0_safe = 0;
-    uint64_t PMCR_EL0_safe = 0;
 
     struct perf_thread
     {

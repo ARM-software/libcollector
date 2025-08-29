@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 30
 
     defaultConfig {
         applicationId "org.arm.collector_android"
         minSdkVersion 15
-        targetSdkVersion 28
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -41,7 +41,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_TOOLCHAIN=clang",
-                            "-DANDROID_PLATFORM=android-28",
+                            "-DANDROID_PLATFORM=android-30",
                             "-DCMAKE_BUILD_TYPE=Debug"
                 }
             }
@@ -51,7 +51,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_TOOLCHAIN=clang",
-                            "-DANDROID_PLATFORM=android-28",
+                            "-DANDROID_PLATFORM=android-30",
                             "-DCMAKE_BUILD_TYPE=Release"
                 }
             }

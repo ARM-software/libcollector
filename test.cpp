@@ -332,6 +332,7 @@ private:
 			int tmp = 1;
 			for (int i = 0; i < ops; i++)
 				tmp *= rand();
+			(void)tmp; // shush compiler
 		};
 
 		if (strncmp(thread_name.c_str(), "patrace", 7) == 0)
