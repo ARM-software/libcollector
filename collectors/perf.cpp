@@ -158,12 +158,35 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name,
                 e.config = item.get("config", 0).asUInt64();
                 auto type_string = e.device;
 
-                auto event_type_filename = "/sys/devices/" + type_string + "/type";
+                auto event_type_filename_fallback = "/sys/devices/" + type_string + "/type";
+                auto event_type_filename = "/sys/bus/event_source/devices/" + type_string + "/type";
+                bool found_event_type = false;
 
                 std::ifstream event_type(event_type_filename);
                 if (getline(event_type, type_string))
                 {
                     DBG_LOG("Read event type %s from %s\n", type_string.c_str(), event_type_filename.c_str());
+                    found_event_type = true;
+                }
+                else
+                {
+                    DBG_LOG("Warning: could not read event type from %s, fallback to %s\n",
+                             event_type_filename.c_str(), event_type_filename_fallback.c_str());
+
+                    std::ifstream event_type_fallback(event_type_filename_fallback);
+                    if (getline(event_type_fallback, type_string))
+                    {
+                        DBG_LOG("Read event type %s from %s\n", type_string.c_str(), event_type_filename_fallback.c_str());
+                        found_event_type = true;
+                    }
+                    else
+                    {
+                        DBG_LOG("Error: wrong device name %s, could not find correspoding event type, event skipped\n", event_type_filename_fallback.c_str());
+                    }
+                }
+
+                if (found_event_type)
+                {
                     e.type=atoi(type_string.c_str());
                     if (e.cspmu)
                     {
@@ -188,10 +211,6 @@ PerfCollector::PerfCollector(const Json::Value& config, const std::string& name,
                             mEvents.emplace(e.device, std::vector<event>{e});
                         }
                     }
-                }
-                else
-                {
-                    DBG_LOG("Error: wrong device name %s, could not find correspoding event type, event skipped\n", event_type_filename.c_str());
                 }
             }
             else if (e.booker_ci)
