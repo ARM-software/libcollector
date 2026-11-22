@@ -27,8 +27,6 @@ ProcFSStatCollector::ProcFSStatCollector(const Json::Value& config, const std::s
 
 bool ProcFSStatCollector::parse(const char* buffer)
 {
-    int pid;
-    char comm[256];
     char state;
     int ppid;
     int pgrp;
@@ -48,12 +46,20 @@ bool ProcFSStatCollector::parse(const char* buffer)
     int nice;
     int num_threads;
 
-    int ret = sscanf(buffer, "%d %s %c %d %d %d %d %d %u %lu %lu %lu %lu %lu %lu %u %u %d %d %d",
-                     &pid, comm, &state, &ppid, &pgrp, &session, &tty_nr, &tpgid, &flags,
+    // The second field is the command name in parentheses. It can contain
+    // spaces (and parentheses), so parse the rest of the line from the last ')'.
+    const char* fields = strrchr(buffer, ')');
+    if (!fields)
+    {
+        return false;
+    }
+
+    int ret = sscanf(fields + 1, " %c %d %d %d %d %d %u %lu %lu %lu %lu %lu %lu %u %u %d %d %d",
+                     &state, &ppid, &pgrp, &session, &tty_nr, &tpgid, &flags,
                      &minflt, &cminflt, &majflt, &cmajflt, &utime, &stime, &cutime, &cstime, &priority,
                      &nice, &num_threads);
 
-    if (ret != 20)
+    if (ret != 18)
     {
         return false;
     }

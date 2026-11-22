@@ -21,8 +21,8 @@ static const std::map<std::string, double> option_map =
 {
     { "/sys/devices/platform/exynos5-tmu/curr_temp", 10.0 },
     { "/sys/devices/platform/exynos5-tmu/temp", 10.0 }, // arndale octa
-    { "/sys/class/thermal/thermal_zone1/temp", 10.0 }, // nvidia tk-1
-    { "/sys/devices/virtual/thermal/thermal_zone0/temp", 100.0 }, // desktop (for testing)
+    { "/sys/class/thermal/thermal_zone1/temp", 1000.0 }, // nvidia tk-1 (thermal zones report millidegrees)
+    { "/sys/devices/virtual/thermal/thermal_zone0/temp", 1000.0 }, // desktop (for testing)
     { "class/thermal/thermal_zone0/temp", 100.0 }, // teclast tpad-1
 };
 
