@@ -351,6 +351,33 @@ private:
 	std::mutex test8_mtx;
 };
 
+static void test9()
+{
+	printf("Trying procfs collector with a space in the process name (should work)...\n");
+	char old_name[17] = {};
+	prctl(PR_GET_NAME, (unsigned long)old_name, 0, 0, 0);
+	prctl(PR_SET_NAME, (unsigned long)"test app", 0, 0, 0);
+	Json::Value j;
+	Json::Value v;
+	v["required"] = true;
+	j["procfs"] = v;
+	Collection c(j);
+	bool result = c.initialize({"procfs"});
+	assert(result);
+	c.start();
+	for (int i = 0; i < 3; i++)
+	{
+		c.collect();
+		usleep(50 + random() % 100);
+	}
+	c.stop();
+	prctl(PR_SET_NAME, (unsigned long)old_name, 0, 0, 0);
+	Json::Value results = c.results();
+	assert(results["procfs"].isObject());
+	assert(results["procfs"]["threads"].size() == 3);
+	assert(results["procfs"]["cpu_time"].size() == 3);
+}
+
 int main()
 {
 	srandom(time(NULL));
@@ -364,6 +391,7 @@ int main()
 	test7(); // summarized results
 	auto test8 = std::unique_ptr<Test8>(new Test8());
 	test8->run();
+	test9();
 	printf("ALL DONE!\n");
 	return 0;
 }
